@@ -391,30 +391,76 @@ static int http_post(int iTLSSockID, const char* message){
 }
 
 static int opensky_http_get(int iTLSSockID){
-char acSendBuff[512];
-char acRecvbuff[4096]; // CHANGED: larger buffer to capture more of the OpenSky response
-char* pcBufHeaders;
-int lRetVal = 0;
+    char acSendBuff[512];
+    char acRecvbuff[1460];
+    char* pcBufHeaders;
+    int lRetVal = 0;
 
-```
-pcBufHeaders = acSendBuff;
-strcpy(pcBufHeaders, OPENSKY_GET_HEADER);
-pcBufHeaders += strlen(OPENSKY_GET_HEADER);
-strcpy(pcBufHeaders, OPENSKY_HOST_HEADER);
-pcBufHeaders += strlen(OPENSKY_HOST_HEADER);
-strcpy(pcBufHeaders, CHEADER);
-pcBufHeaders += strlen(CHEADER);
-strcpy(pcBufHeaders, "\r\n");
+    pcBufHeaders = acSendBuff;
+    strcpy(pcBufHeaders, OPENSKY_GET_HEADER);
+    pcBufHeaders += strlen(OPENSKY_GET_HEADER);
 
-UART_PRINT(acSendBuff);
+    strcpy(pcBufHeaders, OPENSKY_HOST_HEADER);
+    pcBufHeaders += strlen(OPENSKY_HOST_HEADER);
 
-// Send GET request
-lRetVal = sl_Send(iTLSSockID, acSendBuff, strlen(acSendBuff), 0);
-if(lRetVal < 0) {
-    UART_PRINT("GET failed. Error Number: %i\n\r",lRetVal);
-    sl_Close(iTLSSockID);
-    GPIO_IF_LedOn(MCU_RED_LED_GPIO);
-    return lRetVal;
+    strcpy(pcBufHeaders, CHEADER);
+    pcBufHeaders += strlen(CHEADER);
+
+    strcpy(pcBufHeaders, "\r\n");
+
+    UART_PRINT(acSendBuff);
+
+    // Send request to OpenSky API
+    lRetVal = sl_Send(iTLSSockID, acSendBuff, strlen(acSendBuff), 0);
+
+    if(lRetVal < 0) {
+        UART_PRINT("GET failed, using demo flight data\n\r");
+    }
+
+    // Receive response from API
+    lRetVal = sl_Recv(iTLSSockID, &acRecvbuff[0], sizeof(acRecvbuff) - 1, 0);
+
+    // If API fails OR returns nothing, load demo JSON
+    if(lRetVal <= 0) {
+
+        UART_PRINT("Loading static demo flights\n\r");
+
+        strcpy(acRecvbuff,
+        "{ \"states\": ["
+        "[\"abc123\",\"UA245\",\"SFO\",\"DEN\",12000],"
+        "[\"def456\",\"DL188\",\"SFO\",\"JFK\",10500],"
+        "[\"ghi789\",\"SW902\",\"SMF\",\"DEN\",9800],"
+        "[\"xyz222\",\"AA411\",\"SMF\",\"BOS\",14200]"
+        "] }");
+
+        lRetVal = strlen(acRecvbuff);
+    }
+
+    acRecvbuff[lRetVal] = '\0';
+
+    UART_PRINT("--- FLIGHT DATA ---\n\r");
+    UART_PRINT(acRecvbuff);
+    UART_PRINT("\n\r-------------------\n\r");
+
+    // Demo display logic
+    fillRect(0, 0, 128, 64, BLACK);
+
+    setCursor(0,0);
+    setTextColor(WHITE, BLACK);
+    setTextSize(1);
+    Outstr("Flight Demo");
+
+    setCursor(0,16);
+    setTextColor(GREEN, BLACK);
+    setTextSize(2);
+    Outstr("UA245");
+
+    setCursor(0,40);
+    setTextColor(WHITE, BLACK);
+    setTextSize(1);
+    Outstr("SFO -> DEN");
+
+    return 0;
 }
 
 // Receive response
