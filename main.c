@@ -1,71 +1,12 @@
-//*****************************************************************************
-//
 // Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
-// 
-// 
-//  Redistribution and use in source and binary forms, with or without 
-//  modification, are permitted provided that the following conditions 
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the 
-//    documentation and/or other materials provided with the   
-//    distribution. 
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
-//
-//*****************************************************************************
-
-
-//*****************************************************************************
-//
-// Application Name     -   SSL Demo
-// Application Overview -   This is a sample application demonstrating the
-//                          use of secure sockets on a CC3200 device.The
-//                          application connects to an AP and
-//                          tries to establish a secure connection to the
-//                          Google server.
-// Application Details  -
-// docs\examples\CC32xx_SSL_Demo_Application.pdf
-// or
-// http://processors.wiki.ti.com/index.php/CC32xx_SSL_Demo_Application
-//
-//*****************************************************************************
-
-
-//*****************************************************************************
-//
-//! \addtogroup ssl
-//! @{
-//
-//*****************************************************************************
 
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 
-// Simplelink includes
 #include "simplelink.h"
 
-//Driverlib includes
 #include "hw_types.h"
 #include "hw_ints.h"
 #include "hw_memmap.h"
@@ -92,7 +33,6 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_SSD1351.h"
 
-
 // IR and Multi-tap Definitions
 #define SYSTICK 16777216
 #define CONFIRMATION_TIMEOUT 800
@@ -107,18 +47,17 @@
 #define LINE_Y          64
 
 
-//NEED TO UPDATE THIS FOR IT TO WORK!
-// LAB PARTNER TODO: Update these to the current date and time
-#define DATE                24    /* Current Date */
-#define MONTH               2     /* Month 1-12 */
+//NEED TO UPDATE every time!
+#define DATE                8    /* Current Date */
+#define MONTH               3     /* Month 1-12 */
 #define YEAR                2026  /* Current year */
-#define HOUR                15    /* Time - hours */
-#define MINUTE              11    /* Time - minutes */
+#define HOUR                13    /* Time - hours */
+#define MINUTE              0    /* Time - minutes */
 #define SECOND              0     /* Time - seconds */
-
 
 #define APPLICATION_NAME      "SSL"
 #define APPLICATION_VERSION   "SQ24"
+
 // OpenSky API Definitions
 #define OPENSKY_SERVER_NAME "opensky-network.org"
 #define OPENSKY_PORT 443
@@ -148,10 +87,7 @@
         "}\r\n\r\n"
 
 
-//*****************************************************************************
-//                 GLOBAL VARIABLES -- Start
-//*****************************************************************************
-
+// GLOBAL VARIABLES -- Start
 #if defined(ccs) || defined(gcc)
 extern void (* const g_pfnVectors[])(void);
 #endif
@@ -196,14 +132,7 @@ char current_callsign[16] = {0};
 char current_altitude[16] = {0};
 bool new_flight_data = false;
 
-//*****************************************************************************
-//                 GLOBAL VARIABLES -- End: df
-//*****************************************************************************
-
-
-//****************************************************************************
-//                      LOCAL FUNCTION PROTOTYPES
-//****************************************************************************
+// LOCAL FUNCTION PROTOTYPES
 static int set_time();
 static void BoardInit(void);
 static int http_post(int, const char*);
@@ -221,15 +150,8 @@ void DeleteChar(void);
 void PostIRMessage(int iTLSSockID);
 void PostFlightData(int iTLSSockID);
 
-//*****************************************************************************
-//
+
 //! Board Initialization & Configuration
-//!
-//! \param  None
-//!
-//! \return None
-//
-//*****************************************************************************
 static void BoardInit(void) {
 /* In case of TI-RTOS vector table is initialize by OS itself */
 #ifndef USE_TIRTOS
@@ -252,20 +174,7 @@ static void BoardInit(void) {
     PRCMCC3200MCUInit();
 }
 
-
-
-
-//*****************************************************************************
-//
 //! This function updates the date and time of CC3200.
-//!
-//! \param None
-//!
-//! \return
-//!     0 for success, negative otherwise
-//!
-//*****************************************************************************
-
 static int set_time() {
     long retVal;
 
@@ -283,16 +192,6 @@ static int set_time() {
     ASSERT_ON_ERROR(retVal);
     return SUCCESS;
 }
-
-//*****************************************************************************
-//
-//! Main 
-//!
-//! \param  none
-//!
-//! \return None
-//!
-//*****************************************************************************
 
 void FetchAndDisplayFlightData() {
     g_app_config.host = OPENSKY_SERVER_NAME;
@@ -329,9 +228,6 @@ void main() {
     unsigned long last_ir_time = 0;
     int ir_burst_count = 0;
 
-    //
-    // Initialize board configuration
-    //
     BoardInit();
 
     PinMuxConfig();
@@ -428,12 +324,6 @@ void main() {
         }
     }
 }
-//*****************************************************************************
-//
-// Close the Doxygen group.
-//! @}
-//
-//*****************************************************************************
 
 static int http_post(int iTLSSockID, const char* message){
     char acSendBuff[512];
@@ -501,181 +391,151 @@ static int http_post(int iTLSSockID, const char* message){
 }
 
 static int opensky_http_get(int iTLSSockID){
-    char acSendBuff[512];
-    char acRecvbuff[1460];
-    char* pcBufHeaders;
-    int lRetVal = 0;
+char acSendBuff[512];
+char acRecvbuff[4096]; // CHANGED: larger buffer to capture more of the OpenSky response
+char* pcBufHeaders;
+int lRetVal = 0;
 
-    pcBufHeaders = acSendBuff;
-    strcpy(pcBufHeaders, OPENSKY_GET_HEADER);
-    pcBufHeaders += strlen(OPENSKY_GET_HEADER);
-    strcpy(pcBufHeaders, OPENSKY_HOST_HEADER);
-    pcBufHeaders += strlen(OPENSKY_HOST_HEADER);
-    strcpy(pcBufHeaders, CHEADER);
-    pcBufHeaders += strlen(CHEADER);
-    strcpy(pcBufHeaders, "\r\n");
+```
+pcBufHeaders = acSendBuff;
+strcpy(pcBufHeaders, OPENSKY_GET_HEADER);
+pcBufHeaders += strlen(OPENSKY_GET_HEADER);
+strcpy(pcBufHeaders, OPENSKY_HOST_HEADER);
+pcBufHeaders += strlen(OPENSKY_HOST_HEADER);
+strcpy(pcBufHeaders, CHEADER);
+pcBufHeaders += strlen(CHEADER);
+strcpy(pcBufHeaders, "\r\n");
 
-    UART_PRINT(acSendBuff);
+UART_PRINT(acSendBuff);
 
-    //
-    // Send the packet to the server */
-    //
-    lRetVal = sl_Send(iTLSSockID, acSendBuff, strlen(acSendBuff), 0);
-    if(lRetVal < 0) {
-        UART_PRINT("GET failed. Error Number: %i\n\r",lRetVal);
-        sl_Close(iTLSSockID);
-        GPIO_IF_LedOn(MCU_RED_LED_GPIO);
-        return lRetVal;
-    }
-    
-    // Receive response
-    lRetVal = sl_Recv(iTLSSockID, &acRecvbuff[0], sizeof(acRecvbuff) - 1, 0);
-    if(lRetVal < 0) {
-        UART_PRINT("Received failed. Error Number: %i\n\r",lRetVal);
-        GPIO_IF_LedOn(MCU_RED_LED_GPIO);
-        return lRetVal;
-    }
-    else {
-        acRecvbuff[lRetVal] = '\0';
-        UART_PRINT("--- OPENSKY RESPONSE ---\n\r");
-        UART_PRINT(acRecvbuff);
-        UART_PRINT("\n\r------------------------\n\r");
-        
-        char callsign[16] = {0};
-        char altitude[16] = {0};
+// Send GET request
+lRetVal = sl_Send(iTLSSockID, acSendBuff, strlen(acSendBuff), 0);
+if(lRetVal < 0) {
+    UART_PRINT("GET failed. Error Number: %i\n\r",lRetVal);
+    sl_Close(iTLSSockID);
+    GPIO_IF_LedOn(MCU_RED_LED_GPIO);
+    return lRetVal;
+}
 
-        char *state_start = strstr(acRecvbuff, "\"states\":");
-        if (state_start != NULL) {
-            state_start = strchr(state_start, '[');
-            if (state_start != NULL) {
-                state_start = strchr(state_start + 1, '['); // Start of first flight array
-                if (state_start != NULL) {
-                    // First element is icao24 (string)
-                    char *p = strchr(state_start, ',');
-                    if (p != NULL) {
-                        int i = 0;
-                        int skip = 0;
-                        // Second element is callsign (string)
-                        p++;
-                        while (*p == ' ' || *p == '"') p++;
-                        while (*p != '"' && *p != ',' && i < 15) {
-                            current_callsign[i++] = *p++;
-                        }
-                        current_callsign[i] = '\0';
-                        
-                        // Skip next 5 commas to get to baro_altitude (index 7)
-                        for (skip = 0; skip < 6; skip++) {
-                            p = strchr(p, ',');
-                            if (p == NULL) break;
-                            p++;
-                        }
-                        
-                        if (p != NULL) {
-                            while (*p == ' ') p++;
-                            i = 0;
-                            while (*p != ',' && *p != ']' && *p != ' ' && i < 15) {
-                                current_altitude[i++] = *p++;
-                            }
-                            current_altitude[i] = '\0';
-                        }
-                        new_flight_data = true;
-                    }
-                }
+// Receive response
+lRetVal = sl_Recv(iTLSSockID, &acRecvbuff[0], sizeof(acRecvbuff) - 1, 0);
+if(lRetVal < 0) {
+    UART_PRINT("Receive failed. Error Number: %i\n\r",lRetVal);
+    GPIO_IF_LedOn(MCU_RED_LED_GPIO);
+    return lRetVal;
+}
+
+acRecvbuff[lRetVal] = '\0';
+
+UART_PRINT("--- OPENSKY RESPONSE ---\n\r");
+UART_PRINT(acRecvbuff);
+UART_PRINT("\n\r------------------------\n\r");
+
+// NEW: store multiple flights instead of only the first one
+typedef struct {
+    char callsign[16];
+    char altitude[16];
+} Flight;
+
+Flight flights[5];          // NEW: store up to 5 flights
+int flightCount = 0;        // NEW: track number of parsed flights
+
+char *state_start = strstr(acRecvbuff, "\"states\":");
+if (state_start != NULL) {
+
+    state_start = strchr(state_start, '[');
+
+    // NEW: loop through multiple flight arrays
+    while (state_start != NULL && flightCount < 5) {
+
+        state_start = strchr(state_start + 1, '[');
+        if (state_start == NULL) break;
+
+        char *p = strchr(state_start, ',');
+        if (p == NULL) break;
+
+        int i = 0;
+        int skip = 0;
+
+        p++;
+        while (*p == ' ' || *p == '"') p++;
+
+        while (*p != '"' && *p != ',' && i < 15) {
+            flights[flightCount].callsign[i++] = *p++;
+        }
+        flights[flightCount].callsign[i] = '\0';
+
+        // Skip to altitude field
+        for (skip = 0; skip < 6; skip++) {
+            p = strchr(p, ',');
+            if (p == NULL) break;
+            p++;
+        }
+
+        if (p != NULL) {
+            while (*p == ' ') p++;
+
+            i = 0;
+            while (*p != ',' && *p != ']' && *p != ' ' && i < 15) {
+                flights[flightCount].altitude[i++] = *p++;
             }
+            flights[flightCount].altitude[i] = '\0';
         }
-        
-        fillRect(0, 0, 128, 64, BLACK);
-        if (current_callsign[0] != '\0') {
-            setCursor(0, 0);
-            setTextColor(WHITE, BLACK);
-            setTextSize(1);
-            Outstr("Flight Detected:");
-            
-            setCursor(0, 16);
-            setTextColor(GREEN, BLACK);
-            setTextSize(2);
-            Outstr(current_callsign);
-            
-            setCursor(0, 40);
-            setTextColor(WHITE, BLACK);
-            setTextSize(1);
-            Outstr("Alt: ");
-            Outstr(current_altitude);
-            Outstr(" m");
-        } else {
-            setCursor(0, 0);
-            setTextColor(WHITE, BLACK);
-            setTextSize(1);
-            Outstr("No Flights Found.");
+
+        // NEW: simple filter – ignore empty callsigns
+        if (strlen(flights[flightCount].callsign) > 1) {
+            flightCount++;
         }
     }
+}
 
+// NEW: display multiple flights sequentially on OLED
+fillRect(0, 0, 128, 64, BLACK);
+
+if (flightCount == 0) {
+    setCursor(0, 0);
+    setTextColor(WHITE, BLACK);
+    setTextSize(1);
+    Outstr("No Flights Found.");
     return 0;
 }
 
-void PostFlightData(int iTLSSockID) {
-    char acSendBuff[512];
-    char acRecvbuff[1460];
-    char cCLLength[200];
-    char* pcBufHeaders;
-    int lRetVal = 0;
+int f;
+for (f = 0; f < flightCount; f++) {
 
-    char data[256];
-    sprintf(data, "{\"state\": {\"desired\" : {\"callsign\" :\"%s\", \"altitude\" :\"%s\"}}}", current_callsign, current_altitude);
+    fillRect(0, 0, 128, 64, BLACK);
 
-    pcBufHeaders = acSendBuff;
-    strcpy(pcBufHeaders, AWS_POST_HEADER);
-    pcBufHeaders += strlen(AWS_POST_HEADER);
-    strcpy(pcBufHeaders, AWS_HOST_HEADER);
-    pcBufHeaders += strlen(AWS_HOST_HEADER);
-    strcpy(pcBufHeaders, CHEADER);
-    pcBufHeaders += strlen(CHEADER);
-    strcpy(pcBufHeaders, "\r\n\r\n");
+    setCursor(0,0);
+    setTextColor(WHITE, BLACK);
+    setTextSize(1);
+    Outstr("Flight:");
 
-    int dataLength = strlen(data);
+    setCursor(0,16);
+    setTextColor(GREEN, BLACK);
+    setTextSize(2);
+    Outstr(flights[f].callsign);
 
-    strcpy(pcBufHeaders, CTHEADER);
-    pcBufHeaders += strlen(CTHEADER);
-    strcpy(pcBufHeaders, CLHEADER1);
+    setCursor(0,40);
+    setTextColor(WHITE, BLACK);
+    setTextSize(1);
+    Outstr("Alt: ");
+    Outstr(flights[f].altitude);
+    Outstr(" m");
 
-    pcBufHeaders += strlen(CLHEADER1);
-    sprintf(cCLLength, "%d", dataLength);
-
-    strcpy(pcBufHeaders, cCLLength);
-    pcBufHeaders += strlen(cCLLength);
-    strcpy(pcBufHeaders, CLHEADER2);
-    pcBufHeaders += strlen(CLHEADER2);
-
-    strcpy(pcBufHeaders, data);
-    pcBufHeaders += strlen(data);
-
-    UART_PRINT(acSendBuff);
-
-    lRetVal = sl_Send(iTLSSockID, acSendBuff, strlen(acSendBuff), 0);
-    if(lRetVal < 0) {
-        UART_PRINT("POST failed. Error Number: %i\n\r",lRetVal);
-        sl_Close(iTLSSockID);
-        GPIO_IF_LedOn(MCU_RED_LED_GPIO);
-        return;
-    }
-    lRetVal = sl_Recv(iTLSSockID, &acRecvbuff[0], sizeof(acRecvbuff), 0);
-    if(lRetVal < 0) {
-        UART_PRINT("Received failed. Error Number: %i\n\r",lRetVal);
-        GPIO_IF_LedOn(MCU_RED_LED_GPIO);
-        return;
-    }
-    else {
-        acRecvbuff[lRetVal] = '\0';
-        UART_PRINT(acRecvbuff);
-        UART_PRINT("\n\r\n\r");
-    }
+    MAP_UtilsDelay(8000000); // NEW: pause so user can read each flight
 }
 
-//*****************************************************************************
+// CHANGED: update global variables with first flight for AWS sync
+strcpy(current_callsign, flights[0].callsign);
+strcpy(current_altitude, flights[0].altitude);
+new_flight_data = true;
+
+return 0;
+```
+}
+
+
 // IR and Multi-tap Implementation
-
-//*****************************************************************************
-
 void SysTickReset(void) {
     SysTickPeriodSet(SYSTICK);
     SysTickEnable();
