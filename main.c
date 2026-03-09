@@ -36,6 +36,9 @@
 // IR Definitions
 #define SYSTICK 16777216
 
+#define MAXCS_BASE GPIOA0_BASE
+#define MAXCS_PIN  0x2
+
 // UI Colors
 #define BLACK           0x0000
 #define GREEN           0x07E0
@@ -52,7 +55,7 @@
 #define ANIM_INTERVAL   50 // ms
 
 //NEED TO UPDATE every time!
-#define DATE                8    /* Current Date */
+#define DATE                9    /* Current Date */
 #define MONTH               3     /* Month 1-12 */
 #define YEAR                2026  /* Current year */
 #define HOUR                13    /* Time - hours */
@@ -217,6 +220,7 @@ void DisplayFlightByIndex(int index) {
         last_displayed_index = index;
         
         UpdateFlightText();
+        DisplayFlightOnMAX(); // NEW: send flight info to MAX7219 LED
         UART_PRINT("\n\rSelected Flight %d: %s at %sm\n\r", index+1, current_callsign, current_altitude);
 
         // Sync to AWS IoT Cloud Shadow
@@ -261,6 +265,54 @@ void FetchAndDisplayFlightData() {
     }
 }
 
+void MAX7219_Send(unsigned char reg, unsigned char data)
+{
+    unsigned long dummy;
+
+    MAP_GPIOPinWrite(MAXCS_BASE, MAXCS_PIN, 0);
+
+    MAP_SPIDataPut(GSPI_BASE, reg);
+    MAP_SPIDataGet(GSPI_BASE, &dummy);
+
+    MAP_SPIDataPut(GSPI_BASE, data);
+    MAP_SPIDataGet(GSPI_BASE, &dummy);
+
+    MAP_GPIOPinWrite(MAXCS_BASE, MAXCS_PIN, MAXCS_PIN);
+}
+
+void MAX7219_SendChar(char c)
+{
+    unsigned char pattern = 0;
+    switch(c)
+    {
+        case '0': pattern = 0x7E; break;
+        case '1': pattern = 0x30; break;
+        case '2': pattern = 0x6D; break;
+        case '3': pattern = 0x79; break;
+        case '4': pattern = 0x33; break;
+        case '5': pattern = 0x5B; break;
+        case '6': pattern = 0x5F; break;
+        case '7': pattern = 0x70; break;
+        case '8': pattern = 0x7F; break;
+        case '9': pattern = 0x7B; break;
+
+        case 'A': pattern = 0x77; break;
+        case 'F': pattern = 0x47; break;
+        case 'L': pattern = 0x0E; break;
+        case 'Y': pattern = 0x3B; break;
+        case ' ': pattern = 0x00; break;
+        default:  pattern = 0x00;
+    }
+    MAX7219_Send(1, pattern);
+}
+
+void MAX7219_Init() {
+    MAX7219_Send(0x0F, 0x00);
+    MAX7219_Send(0x0C, 0x01);
+    MAX7219_Send(0x0B, 0x07);
+    MAX7219_Send(0x0A, 0x08);
+}
+
 void main() {
     long lRetVal = -1;
     unsigned long last_anim_time = 0;
@@ -276,6 +328,9 @@ void main() {
     MAP_PRCMPeripheralReset(PRCM_GSPI);
     MAP_SPIConfigSetExpClk(GSPI_BASE, MAP_PRCMPeripheralClockGet(PRCM_GSPI), 1000000, SPI_MODE_MASTER, SPI_SUB_MODE_0, (SPI_SW_CTRL_CS | SPI_4PIN_MODE | SPI_TURBO_OFF | SPI_CS_ACTIVEHIGH | SPI_WL_8));
     MAP_SPIEnable(GSPI_BASE);
+
+    MAX7219_Init();
+
     Adafruit_Init();
     fillScreen(SKY_BLUE);
 
@@ -386,6 +441,19 @@ static int opensky_http_get(int iTLSSockID){
         strcpy(current_altitude, "35000");
     }
     return 0;
+}
+
+void DisplayFlightOnMAX() {
+
+    char msg[32];
+    int i;
+    sprintf(msg, "%s %sm", current_callsign, current_altitude);
+    UART_PRINT("MAX7219: %s\n\r", msg);
+
+    for(i = 0; i < strlen(msg); i++) {
+        MAX7219_SendChar(msg[i]);
+        UtilsDelay(8000000);
+    }
 }
 
 void SysTickReset(void) { SysTickPeriodSet(SYSTICK); SysTickEnable(); }
