@@ -352,6 +352,7 @@ void UpdateCompassDisplay() {
         int heading = mock_flights[last_displayed_index].heading;
         if (interrupt_draw) return;
         
+        // Refined Aviation Needle (Sharp & Professional)
         int tip_x = 64 + get_x_offset(heading, 35);
         int tip_y = 68 + get_y_offset(heading, 35);
         int side1_x = 64 + get_x_offset(heading + 170, 7);

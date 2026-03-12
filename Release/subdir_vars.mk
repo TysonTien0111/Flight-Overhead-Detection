@@ -12,6 +12,7 @@ C_SRCS += \
 ../Adafruit_GFX.c \
 ../Adafruit_OLED.c \
 C:/ti/CC3200SDK_1.5.0/cc3200-sdk/example/common/gpio_if.c \
+../i2c_if.c \
 ../main.c \
 C:/ti/CC3200SDK_1.5.0/cc3200-sdk/example/common/network_common.c \
 ../pinmux.c \
@@ -23,6 +24,7 @@ C_DEPS += \
 ./Adafruit_GFX.d \
 ./Adafruit_OLED.d \
 ./gpio_if.d \
+./i2c_if.d \
 ./main.d \
 ./network_common.d \
 ./pinmux.d \
@@ -34,6 +36,7 @@ OBJS += \
 ./Adafruit_GFX.obj \
 ./Adafruit_OLED.obj \
 ./gpio_if.obj \
+./i2c_if.obj \
 ./main.obj \
 ./network_common.obj \
 ./pinmux.obj \
@@ -45,6 +48,7 @@ OBJS__QUOTED += \
 "Adafruit_GFX.obj" \
 "Adafruit_OLED.obj" \
 "gpio_if.obj" \
+"i2c_if.obj" \
 "main.obj" \
 "network_common.obj" \
 "pinmux.obj" \
@@ -56,6 +60,7 @@ C_DEPS__QUOTED += \
 "Adafruit_GFX.d" \
 "Adafruit_OLED.d" \
 "gpio_if.d" \
+"i2c_if.d" \
 "main.d" \
 "network_common.d" \
 "pinmux.d" \
@@ -67,6 +72,7 @@ C_SRCS__QUOTED += \
 "../Adafruit_GFX.c" \
 "../Adafruit_OLED.c" \
 "C:/ti/CC3200SDK_1.5.0/cc3200-sdk/example/common/gpio_if.c" \
+"../i2c_if.c" \
 "../main.c" \
 "C:/ti/CC3200SDK_1.5.0/cc3200-sdk/example/common/network_common.c" \
 "../pinmux.c" \

@@ -16,6 +16,10 @@ main.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/_st
 main.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdbool.h
 main.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/string.h
 main.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/xlocale/_string.h
+main.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdlib.h
+main.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/math.h
+main.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/_defs.h
+main.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/machine/_limits.h
 main.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/include/simplelink.h
 main.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/user.h
 main.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/cc_pal.h
@@ -45,6 +49,7 @@ main.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/driverlib/gpio.h
 main.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/driverlib/timer.h
 main.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/driverlib/spi.h
 main.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/driverlib/systick.h
+main.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/driverlib/i2c.h
 main.obj: ../pinmux.h
 main.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/example/common/gpio_if.h
 main.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/example/common/common.h
@@ -53,6 +58,8 @@ main.obj: ../timer_if.h
 main.obj: ../utils/network_utils.h
 main.obj: ../Adafruit_GFX.h
 main.obj: ../Adafruit_SSD1351.h
+main.obj: ../i2c_if.h
+main.obj: ../world_map.h
 
 ../main.c:
 
@@ -85,6 +92,14 @@ C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdbool.h:
 C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/string.h:
 
 C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/xlocale/_string.h:
+
+C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdlib.h:
+
+C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/math.h:
+
+C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/_defs.h:
+
+C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/machine/_limits.h:
 
 C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/include/simplelink.h:
 
@@ -144,6 +159,8 @@ C:/ti/CC3200SDK_1.5.0/cc3200-sdk/driverlib/spi.h:
 
 C:/ti/CC3200SDK_1.5.0/cc3200-sdk/driverlib/systick.h:
 
+C:/ti/CC3200SDK_1.5.0/cc3200-sdk/driverlib/i2c.h:
+
 ../pinmux.h:
 
 C:/ti/CC3200SDK_1.5.0/cc3200-sdk/example/common/gpio_if.h:
@@ -159,4 +176,8 @@ C:/ti/CC3200SDK_1.5.0/cc3200-sdk/example/common/uart_if.h:
 ../Adafruit_GFX.h:
 
 ../Adafruit_SSD1351.h:
+
+../i2c_if.h:
+
+../world_map.h:
 
