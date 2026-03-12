@@ -1,13 +1,9 @@
-/*
- * network_utils.c
- *
- *  Created on: May 7, 2024
- *      Author: rtsang
- */
 #include "network_utils.h"
 
 // stdlib includes
 #include <stdio.h>
+#include <stddef.h>
+#include <stdlib.h>
 
 // Driverlib includes
 #include "hw_types.h"
@@ -24,7 +20,6 @@
 
 
 // globals
-
 volatile unsigned long  g_ulStatus = 0; //SimpleLink Status
 unsigned long  g_ulPingPacketsRecv = 0; //Number of Ping Packets received
 unsigned long  g_ulGatewayIP = 0;       //Network Gateway IP address
@@ -37,20 +32,6 @@ int g_port;
 SlDateTime g_time;
 SlAppConfig_t g_app_config;
 
-//*****************************************************************************
-// SimpleLink Asynchronous Event Handlers -- Start
-//*****************************************************************************
-
-
-//*****************************************************************************
-//
-//! \brief The Function Handles WLAN Events
-//!
-//! \param[in]  pWlanEvent - Pointer to WLAN Event Info
-//!
-//! \return None
-//!
-//*****************************************************************************
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pWlanEvent) {
     if(!pWlanEvent) {
         return;
@@ -125,16 +106,6 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pWlanEvent) {
     }
 }
 
-//*****************************************************************************
-//
-//! \brief This function handles network events such as IP acquisition, IP
-//!           leased, IP released etc.
-//!
-//! \param[in]  pNetAppEvent - Pointer to NetApp Event Info
-//!
-//! \return None
-//!
-//*****************************************************************************
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
     if(!pNetAppEvent) {
         return;
@@ -173,55 +144,20 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
     }
 }
 
-
-//*****************************************************************************
-//
-//! \brief This function handles HTTP server events
-//!
-//! \param[in]  pServerEvent - Contains the relevant event information
-//! \param[in]    pServerResponse - Should be filled by the user with the
-//!                                      relevant response information
-//!
-//! \return None
-//!
-//****************************************************************************
 void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpEvent, SlHttpServerResponse_t *pHttpResponse) {
     // Unused in this application
 }
 
-//*****************************************************************************
-//
-//! \brief This function handles General Events
-//!
-//! \param[in]     pDevEvent - Pointer to General Event Info
-//!
-//! \return None
-//!
-//*****************************************************************************
 void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent) {
     if(!pDevEvent) {
         return;
     }
 
-    //
-    // Most of the general errors are not FATAL are are to be handled
-    // appropriately by the application
-    //
     UART_PRINT("[GENERAL EVENT] - ID=[%d] Sender=[%d]\n\n",
                pDevEvent->EventData.deviceEvent.status,
                pDevEvent->EventData.deviceEvent.sender);
 }
 
-
-//*****************************************************************************
-//
-//! This function handles socket events indication
-//!
-//! \param[in]      pSock - Pointer to Socket Event Info
-//!
-//! \return None
-//!
-//*****************************************************************************
 void SimpleLinkSockEventHandler(SlSockEvent_t *pSock) {
     if(!pSock) {
         return;
@@ -250,25 +186,6 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock) {
 }
 
 
-//*****************************************************************************
-// SimpleLink Asynchronous Event Handlers -- End breadcrumb: s18_df
-//*****************************************************************************
-
-
-
-//*****************************************************************************
-// SimpleLink Utility Functions -- Start
-//*****************************************************************************
-
-//*****************************************************************************
-//
-//! \brief This function initializes the application variables
-//!
-//! \param    0 on success else error code
-//!
-//! \return None
-//!
-//*****************************************************************************
 static long InitializeAppVariables() {
     g_ulStatus = 0;
     g_ulGatewayIP = 0;
@@ -280,21 +197,6 @@ static long InitializeAppVariables() {
 }
 
 
-//*****************************************************************************
-//! \brief This function puts the device in its default state. It:
-//!           - Set the mode to STATION
-//!           - Configures connection policy to Auto and AutoSmartConfig
-//!           - Deletes all the stored profiles
-//!           - Enables DHCP
-//!           - Disables Scan policy
-//!           - Sets Tx power to maximum
-//!           - Sets power policy to normal
-//!           - Unregister mDNS services
-//!           - Remove all filters
-//!
-//! \param   none
-//! \return  On success, zero is returned. On error, negative is returned
-//*****************************************************************************
 static long ConfigureSimpleLinkToDefaultState() {
     SlVersionFull   ver = {0};
     _WlanRxFilterOperationCommandBuff_t  RxFilterIdMask = {0};
@@ -364,14 +266,6 @@ static long ConfigureSimpleLinkToDefaultState() {
     lRetVal = sl_WlanProfileDel(0xFF);
     ASSERT_ON_ERROR(lRetVal);
 
-
-
-    //
-    // Device in station-mode. Disconnect previous connection if any
-    // The function returns 0 if 'Disconnected done', negative number if already
-    // disconnected Wait for 'disconnection' event if 0 is returned, Ignore
-    // other return-codes
-    //
     lRetVal = sl_WlanDisconnect();
     if(0 == lRetVal) {
         // Wait
@@ -417,25 +311,9 @@ static long ConfigureSimpleLinkToDefaultState() {
 
     InitializeAppVariables();
 
-    return lRetVal; // Success
+    return lRetVal;
 }
 
-
-//****************************************************************************
-//
-//! \brief Connecting to a WLAN Accesspoint
-//!
-//!  This function connects to the required AP (SSID_NAME) with Security
-//!  parameters specified in te form of macros at the top of this file
-//!
-//! \param  None
-//!
-//! \return  0 on success else error code
-//!
-//! \warning    If the WLAN connection fails or we don't aquire an IP
-//!            address, It will be stuck in this function forever.
-//
-//****************************************************************************
 static long WlanConnect() {
     SlSecParams_t secParams = {0};
     long lRetVal = 0;
@@ -452,10 +330,7 @@ static long WlanConnect() {
 
     UART_PRINT(" Connected!!!\n\r");
 
-
-    // Wait for WLAN Event
     while((!IS_CONNECTED(g_ulStatus)) || (!IS_IP_ACQUIRED(g_ulStatus))) {
-        // Toggle LEDs to Indicate Connection Progress
         _SlNonOsMainLoopTask();
         GPIO_IF_LedOff(MCU_IP_ALLOC_IND);
         MAP_UtilsDelay(800000);
@@ -468,125 +343,129 @@ static long WlanConnect() {
 
 }
 
-
-
-
 long printErrConvenience(char * msg, long retVal) {
     UART_PRINT(msg);
     GPIO_IF_LedOn(MCU_RED_LED_GPIO);
     return retVal;
 }
 
-//*****************************************************************************
-//
-//! This function demonstrates how certificate can be used with SSL.
-//! The procedure includes the following steps:
-//! 1) connect to an open AP
-//! 2) get the server name via a DNS request
-//! 3) define all socket options and point to the CA certificate
-//! 4) connect to the server via TCP
-//!
-//! \param None
-//!
-//! \return  0 on success else error code
-//! \return  LED1 is turned solid in case of success
-//!    LED2 is turned solid in case of failure
-//!
-//*****************************************************************************
 int tls_connect(bool mtls) {
-    SlSockAddrIn_t    Addr;
-    int    iAddrSize;
-    unsigned char    ucMethod = SL_SO_SEC_METHOD_TLSV1_2;
+
+    SlSockAddrIn_t Addr;
+    int iAddrSize;
+    unsigned char ucMethod = SL_SO_SEC_METHOD_TLSV1_2;
     unsigned int uiIP;
     unsigned int uiCipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
     long lRetVal = -1;
     int iSockID;
 
-    // Use dynamic configuration instead of g_Host / g_port
-    lRetVal = sl_NetAppDnsGetHostByName(g_app_config.host, strlen((const char *)g_app_config.host),
-                                    (unsigned long*)&uiIP, SL_AF_INET);
-
-    if(lRetVal < 0) {
-        return printErrConvenience("Device couldn't retrieve the host name \n\r", lRetVal);
+    /* Resolve host name to IP */
+//    lRetVal = sl_NetAppDnsGetHostByName(
+//        g_app_config.host,
+//        strlen((const char *)g_app_config.host),
+//        (unsigned long*)&uiIP,
+//        SL_AF_INET
+//    );
+    if (isdigit(g_app_config.host[0])) {
+        uiIP = sl_Htonl(SL_IPV4_VAL(11,22,54,245)); // your laptop IP
+    } else {
+        lRetVal = sl_NetAppDnsGetHostByName(g_app_config.host,
+                                            strlen((const char *)g_app_config.host),
+                                            (unsigned long*)&uiIP,
+                                            SL_AF_INET);
     }
 
+    if(lRetVal < 0) {
+        return printErrConvenience("Device couldn't retrieve host name\n\r", lRetVal);
+    }
+
+    /* Setup server address */
     Addr.sin_family = SL_AF_INET;
     Addr.sin_port = sl_Htons(g_app_config.port);
     Addr.sin_addr.s_addr = sl_Htonl(uiIP);
     iAddrSize = sizeof(SlSockAddrIn_t);
-    
-    // opens a secure socket
-    iSockID = sl_Socket(SL_AF_INET,SL_SOCK_STREAM, SL_SEC_SOCKET);
-    if( iSockID < 0 ) {
-        return printErrConvenience("Device unable to create secure socket \n\r", lRetVal);
+
+    /* Create socket depending on TLS usage */
+    if(mtls) {
+        UART_PRINT("[NET] Creating TLS socket\n\r");
+        iSockID = sl_Socket(SL_AF_INET, SL_SOCK_STREAM, SL_SEC_SOCKET);
+    } else {
+        UART_PRINT("[NET] Creating normal TCP socket\n\r");
+        iSockID = sl_Socket(SL_AF_INET, SL_SOCK_STREAM, 0);
     }
 
-    // configure the socket as TLS1.2
-    lRetVal = sl_SetSockOpt(iSockID, SL_SOL_SOCKET, SL_SO_SECMETHOD, &ucMethod, sizeof(ucMethod));
-    if(lRetVal < 0) {
-        return printErrConvenience("Device couldn't set socket options \n\r", lRetVal);
+    if(iSockID < 0) {
+        return printErrConvenience("Device unable to create socket\n\r", iSockID);
     }
-    
-    if (mtls) {
-        //configure the socket as ECDHE RSA WITH AES128 CBC SHA256
-        lRetVal = sl_SetSockOpt(iSockID, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &uiCipher, sizeof(uiCipher));
+
+    /* Configure TLS settings only if TLS is needed */
+    if(mtls) {
+
+        lRetVal = sl_SetSockOpt(iSockID, SL_SOL_SOCKET,
+                                SL_SO_SECMETHOD,
+                                &ucMethod,
+                                sizeof(ucMethod));
         if(lRetVal < 0) {
-            return printErrConvenience("Device couldn't set socket options \n\r", lRetVal);
+            return printErrConvenience("Failed setting TLS method\n\r", lRetVal);
         }
 
-        //configure the socket with CA certificate - for server verification
-        lRetVal = sl_SetSockOpt(iSockID, SL_SOL_SOCKET, 
-                               SL_SO_SECURE_FILES_CA_FILE_NAME, 
-                               SL_SSL_CA_CERT, 
-                               strlen(SL_SSL_CA_CERT));
+        lRetVal = sl_SetSockOpt(iSockID, SL_SOL_SOCKET,
+                                SL_SO_SECURE_MASK,
+                                &uiCipher,
+                                sizeof(uiCipher));
         if(lRetVal < 0) {
-            return printErrConvenience("Device couldn't set socket options \n\r", lRetVal);
+            return printErrConvenience("Failed setting TLS cipher\n\r", lRetVal);
         }
 
-        //configure the socket with Client Certificate - for server verification
-        lRetVal = sl_SetSockOpt(iSockID, SL_SOL_SOCKET, 
-                    SL_SO_SECURE_FILES_CERTIFICATE_FILE_NAME, 
-                                        SL_SSL_CLIENT, 
-                               strlen(SL_SSL_CLIENT));
+        /* CA certificate */
+        lRetVal = sl_SetSockOpt(iSockID, SL_SOL_SOCKET,
+                                SL_SO_SECURE_FILES_CA_FILE_NAME,
+                                SL_SSL_CA_CERT,
+                                strlen(SL_SSL_CA_CERT));
         if(lRetVal < 0) {
-            return printErrConvenience("Device couldn't set socket options \n\r", lRetVal);
+            return printErrConvenience("Failed setting CA certificate\n\r", lRetVal);
         }
 
-        //configure the socket with Private Key - for server verification
-        lRetVal = sl_SetSockOpt(iSockID, SL_SOL_SOCKET, 
-                SL_SO_SECURE_FILES_PRIVATE_KEY_FILE_NAME, 
-                SL_SSL_PRIVATE, 
-                               strlen(SL_SSL_PRIVATE));
+        /* Client certificate */
+        lRetVal = sl_SetSockOpt(iSockID, SL_SOL_SOCKET,
+                                SL_SO_SECURE_FILES_CERTIFICATE_FILE_NAME,
+                                SL_SSL_CLIENT,
+                                strlen(SL_SSL_CLIENT));
         if(lRetVal < 0) {
-            return printErrConvenience("Device couldn't set socket options \n\r", lRetVal);
+            return printErrConvenience("Failed setting client certificate\n\r", lRetVal);
         }
-    } 
 
-    /* connect to the peer device */
-    lRetVal = sl_Connect(iSockID, ( SlSockAddr_t *)&Addr, iAddrSize);
+        /* Private key */
+        lRetVal = sl_SetSockOpt(iSockID, SL_SOL_SOCKET,
+                                SL_SO_SECURE_FILES_PRIVATE_KEY_FILE_NAME,
+                                SL_SSL_PRIVATE,
+                                strlen(SL_SSL_PRIVATE));
+        if(lRetVal < 0) {
+            return printErrConvenience("Failed setting private key\n\r", lRetVal);
+        }
+    }
+
+    /* Connect to server */
+    UART_PRINT("[NET] Connecting to %s:%d\n\r", g_app_config.host, g_app_config.port);
+
+    lRetVal = sl_Connect(iSockID, (SlSockAddr_t *)&Addr, iAddrSize);
 
     if(lRetVal >= 0) {
-        UART_PRINT("Device has connected to the website:");
-        UART_PRINT("%s", g_app_config.host);
-        UART_PRINT("\n\r");
+        UART_PRINT("[NET] Connected to %s\n\r", g_app_config.host);
     }
     else if(lRetVal == SL_ESECSNOVERIFY) {
-        UART_PRINT("Device has connected to the website (UNVERIFIED):");
-        UART_PRINT("%s", g_app_config.host);
-        UART_PRINT("\n\r");
+        UART_PRINT("[NET] Connected but certificate not verified\n\r");
     }
-    else if(lRetVal < 0) {
-        UART_PRINT("Device couldn't connect to server:");
-        UART_PRINT("%s", g_app_config.host);
-        UART_PRINT("\n\r");
-        return printErrConvenience("Device couldn't connect to server \n\r", lRetVal);
+    else {
+        UART_PRINT("[NET] Connection failed: %ld\n\r", lRetVal);
+        return printErrConvenience("Device couldn't connect to server\n\r", lRetVal);
     }
 
     GPIO_IF_LedOff(MCU_RED_LED_GPIO);
     GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
+
     return iSockID;
 }
-
 
 
 int connectToAccessPoint() {
@@ -621,10 +500,6 @@ int connectToAccessPoint() {
 
     CLR_STATUS_BIT_ALL(g_ulStatus);
 
-    ///
-    // Assumption is that the device is configured in station mode already
-    // and it is in its default state
-    //
     UART_PRINT("Opening sl_start\n\r");
     lRetVal = sl_Start(0, 0, 0);
     if (lRetVal < 0 || ROLE_STA != lRetVal) {
@@ -634,9 +509,6 @@ int connectToAccessPoint() {
 
     UART_PRINT("Device started as STATION \n\r");
 
-    //
-    //Connecting to WLAN AP
-    //
     lRetVal = WlanConnect();
     if(lRetVal < 0) {
         UART_PRINT("Failed to establish connection w/ an AP \n\r");

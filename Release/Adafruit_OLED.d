@@ -1,11 +1,11 @@
 # FIXED
 
 Adafruit_OLED.obj: ../Adafruit_OLED.c
-Adafruit_OLED.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/string.h
-Adafruit_OLED.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/_ti_config.h
-Adafruit_OLED.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/linkage.h
-Adafruit_OLED.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/cdefs.h
-Adafruit_OLED.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/xlocale/_string.h
+Adafruit_OLED.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/string.h
+Adafruit_OLED.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/_ti_config.h
+Adafruit_OLED.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/linkage.h
+Adafruit_OLED.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/sys/cdefs.h
+Adafruit_OLED.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/xlocale/_string.h
 Adafruit_OLED.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/inc/hw_types.h
 Adafruit_OLED.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/inc/hw_memmap.h
 Adafruit_OLED.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/inc/hw_common_reg.h
@@ -25,15 +25,15 @@ Adafruit_OLED.obj: ../Adafruit_SSD1351.h
 
 ../Adafruit_OLED.c:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/string.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/string.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/_ti_config.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/_ti_config.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/linkage.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/linkage.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/cdefs.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/sys/cdefs.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/xlocale/_string.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/xlocale/_string.h:
 
 C:/ti/CC3200SDK_1.5.0/cc3200-sdk/inc/hw_types.h:
 

@@ -4,7 +4,7 @@
 
 SHELL = cmd.exe
 
-CG_TOOL_ROOT := C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS
+CG_TOOL_ROOT := C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS
 
 GEN_OPTS__FLAG := 
 GEN_CMDS__FLAG := 
@@ -138,6 +138,12 @@ EEC\ 172\ Final\ Project.out \
 EXE_OUTPUTS__QUOTED += \
 "EEC 172 Final Project.out" \
 
+BIN_OUTPUTS += \
+EEC\ 172\ Final\ Project.bin \
+
+BIN_OUTPUTS__QUOTED += \
+"EEC 172 Final Project.bin" \
+
 
 # All Target
 all: EEC\ 172\ Final\ Project.out
@@ -146,14 +152,22 @@ all: EEC\ 172\ Final\ Project.out
 EEC\ 172\ Final\ Project.out: $(OBJS) $(CMD_SRCS) $(GEN_CMDS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: Arm Linker'
-	"C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=none -me -Ooff --define=ccs --define=cc3200 -g --gcc --printf_support=full --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"EEC 172 Final Project.map" --heap_size=0x00008000 --stack_size=0x00001000 -i"C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/lib" -i"C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include" --reread_libs --diag_wrap=off --display_error_number --warn_sections --xml_link_info="EEC 172 Final Project_linkInfo.xml" --rom_model -o "EEC 172 Final Project.out" $(ORDERED_OBJS)
+	"C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=none -me -Ooff --define=ccs --define=cc3200 -g --gcc --printf_support=full --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"EEC 172 Final Project.map" --heap_size=0x00008000 --stack_size=0x00001000 -i"C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/lib" -i"C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include" --reread_libs --diag_wrap=off --display_error_number --warn_sections --xml_link_info="EEC 172 Final Project_linkInfo.xml" --rom_model -o "EEC 172 Final Project.out" $(ORDERED_OBJS)
 	@echo 'Finished building target: "$@"'
+	@echo ' '
+	@$(MAKE) --no-print-directory post-build
+
+EEC\ 172\ Final\ Project.bin: $(EXE_OUTPUTS)
+	@echo 'Building secondary target: "$@"'
+	@echo 'Invoking: Arm Hex Utility'
+	"C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/bin/armhex" --diag_wrap=off -o "EEC 172 Final Project.bin" $(EXE_OUTPUTS__QUOTED)
+	@echo 'Finished building secondary target: "$@"'
 	@echo ' '
 	@$(MAKE) --no-print-directory post-build
 
 # Other Targets
 clean:
-	-$(RM) $(EXE_OUTPUTS__QUOTED)
+	-$(RM) $(BIN_OUTPUTS__QUOTED)$(EXE_OUTPUTS__QUOTED)
 	-$(RM) "Adafruit_GFX.obj" "Adafruit_OLED.obj" "gpio_if.obj" "main.obj" "network_common.obj" "pinmux.obj" "startup_ccs.obj" "timer_if.obj" "uart_if.obj" "utils\network_utils.obj" 
 	-$(RM) "Adafruit_GFX.d" "Adafruit_OLED.d" "gpio_if.d" "main.d" "network_common.d" "pinmux.d" "startup_ccs.d" "timer_if.d" "uart_if.d" "utils\network_utils.d" 
 	-@echo 'Finished clean'
@@ -161,7 +175,7 @@ clean:
 
 post-build:
 	-@echo 'Bin Generation'
-	-"C:/ti/ccs1250/ccs/utils/tiobj2bin/tiobj2bin" "EEC 172 Final Project.out" "EEC 172 Final Project.bin" "C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/bin/armofd" "C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/bin/armhex" "C:/ti/ccs1250/ccs/utils/tiobj2bin/mkhex4bin"
+	-"C:/ti/ccs1040/ccs/utils/tiobj2bin/tiobj2bin" "EEC 172 Final Project.out" "EEC 172 Final Project.bin" "C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/bin/armofd" "C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/bin/armhex" "C:/ti/ccs1040/ccs/utils/tiobj2bin/mkhex4bin"
 	-@echo ' '
 
 .PHONY: all clean dependents

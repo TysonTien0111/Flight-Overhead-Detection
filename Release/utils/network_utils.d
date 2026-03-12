@@ -4,11 +4,11 @@ utils/network_utils.obj: ../utils/network_utils.c
 utils/network_utils.obj: ../utils/network_utils.h
 utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/include/simplelink.h
 utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/user.h
-utils/network_utils.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/string.h
-utils/network_utils.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/_ti_config.h
-utils/network_utils.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/linkage.h
-utils/network_utils.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/cdefs.h
-utils/network_utils.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/xlocale/_string.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/string.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/_ti_config.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/linkage.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/sys/cdefs.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/xlocale/_string.h
 utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/cc_pal.h
 utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink_extlib/provisioninglib/provisioning_api.h
 utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/include/simplelink.h
@@ -24,11 +24,13 @@ utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/include/wla
 utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/source/nonos.h
 utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/driverlib/utils.h
 utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/example/common/common.h
-utils/network_utils.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdbool.h
-utils/network_utils.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdio.h
-utils/network_utils.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdarg.h
-utils/network_utils.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/_types.h
-utils/network_utils.obj: C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/machine/_types.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/stdbool.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/stdio.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/stdarg.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/sys/_types.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/machine/_types.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/stddef.h
+utils/network_utils.obj: C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/stdlib.h
 utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/inc/hw_types.h
 utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/inc/hw_ints.h
 utils/network_utils.obj: C:/ti/CC3200SDK_1.5.0/cc3200-sdk/driverlib/rom.h
@@ -48,15 +50,15 @@ C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/include/simplelink.h:
 
 C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/user.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/string.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/string.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/_ti_config.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/_ti_config.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/linkage.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/linkage.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/cdefs.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/sys/cdefs.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/xlocale/_string.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/xlocale/_string.h:
 
 C:/ti/CC3200SDK_1.5.0/cc3200-sdk/simplelink/cc_pal.h:
 
@@ -88,15 +90,19 @@ C:/ti/CC3200SDK_1.5.0/cc3200-sdk/driverlib/utils.h:
 
 C:/ti/CC3200SDK_1.5.0/cc3200-sdk/example/common/common.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdbool.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/stdbool.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdio.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/stdio.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdarg.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/stdarg.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/_types.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/sys/_types.h:
 
-C:/ti/ccs1250/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/machine/_types.h:
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/machine/_types.h:
+
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/stddef.h:
+
+C:/ti/ccs1040/ccs/tools/compiler/ti-cgt-arm_20.2.5.LTS/include/stdlib.h:
 
 C:/ti/CC3200SDK_1.5.0/cc3200-sdk/inc/hw_types.h:
 

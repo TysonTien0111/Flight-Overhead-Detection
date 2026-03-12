@@ -9,5 +9,5 @@
 	<rts value="libc.a"/>
 	<templateProperties value="id=com.ti.common.project.core.emptyProjectWithMainTemplate,"/>
 	<isTargetManual value="true"/>
-	<origin value="/Users/rtsang/Documents/UCD/eec172-content/dev/lab-support/lab4/SSL_REST_API_AWS"/>
+	<origin value="C:/Users/lizat/Desktop/EEC 172/Final_project/FlightDetection-v1"/>
 </projectOptions>

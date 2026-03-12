@@ -44,6 +44,11 @@ void PinMuxConfig(void)
     PinTypeGPIO(PIN_15, PIN_MODE_0, false);
     GPIODirModeSet(GPIOA2_BASE, 0x40, GPIO_DIR_MODE_OUT);
 
+    // Configure PIN_64 for GPIO Output (MAX7219 CS)
+    //
+    PinTypeGPIO(PIN_64, PIN_MODE_0, false);
+    GPIODirModeSet(GPIOA0_BASE, 0x1, GPIO_DIR_MODE_OUT);
+
     //
     // Configure PIN_05 for SPI0 GSPI_CLK
     //
