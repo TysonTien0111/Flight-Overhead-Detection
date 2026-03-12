@@ -52,6 +52,7 @@
 #define MAP_OCEAN       0x001F
 #define MAP_LAND        0x07E0
 #define RED             0xF800
+#define GRAY            0x7BCF
 
 // BMA222 I2C Definitions
 #define BMA222_ADDR     0x18
@@ -352,7 +353,7 @@ void UpdateCompassDisplay() {
         int heading = mock_flights[last_displayed_index].heading;
         if (interrupt_draw) return;
         
-        // Refined Aviation Needle (Sharp & Professional)
+        // Refined Diamond Aviation Pointer (North/South split)
         int tip_x = 64 + get_x_offset(heading, 35);
         int tip_y = 68 + get_y_offset(heading, 35);
         int side1_x = 64 + get_x_offset(heading + 170, 7);
@@ -362,10 +363,10 @@ void UpdateCompassDisplay() {
         int tail_x = 64 + get_x_offset(heading + 180, 35);
         int tail_y = 68 + get_y_offset(heading + 180, 35);
 
-        fillTriangle(tip_x, tip_y, side1_x, side1_y, side2_x, side2_y, RED);
+        fillTriangle(tip_x, tip_y, side1_x, side1_y, side2_x, side2_y, RED); // North
         if (interrupt_draw) return;
-        fillTriangle(tail_x, tail_y, side1_x, side1_y, side2_x, side2_y, WHITE);
-        fillCircle(64, 68, 3, 0x7BCF); 
+        fillTriangle(tail_x, tail_y, side1_x, side1_y, side2_x, side2_y, WHITE); // South
+        fillCircle(64, 68, 3, GRAY); // Pivot pin
 
         char buf[16]; sprintf(buf, "Hdg: %03d DEG", heading);
         setCursor(30, 118); setTextColor(GREEN, BLACK); Outstr(buf);
@@ -384,7 +385,11 @@ void UpdateProgressDisplay() {
         setCursor(0, 5); setTextColor(YELLOW, BLACK); Outstr("EN ROUTE");
         setCursor(10, 35); setTextColor(CYAN, BLACK); setTextSize(2); Outstr(f.origin_code);
         setCursor(94, 35); Outstr(f.dest_code); setTextSize(1);
-        drawRect(10, 65, 108, 16, WHITE);
+        
+        // Stylized track background
+        fillRect(10, 65, 108, 16, 0x2104); // Dark Gray background
+        drawRect(10, 65, 108, 16, WHITE); // Border
+        
         if (interrupt_draw) return;
         char buf[20]; sprintf(buf, "Status: %d%%", f.percent_complete);
         setCursor(30, 95); setTextColor(GREEN, BLACK); Outstr(buf);
@@ -397,8 +402,8 @@ void UpdateProgressDisplay() {
         last_blink_time = tickCount;
         if (anim_x < target_x) {
             if (interrupt_draw) return;
-            fillRect(anim_x - 4, 52, 8, 8, BLACK);
-            drawFastVLine(anim_x, 66, 14, GREEN);
+            fillRect(anim_x - 4, 52, 8, 8, BLACK); // Erase icon
+            drawFastVLine(anim_x, 66, 14, GREEN); // Fill bar
             anim_x++;
             if (interrupt_draw) return;
             DrawMonochromeBitmap(anim_x - 4, 52, airplane_bmp, 8, 8, WHITE);
@@ -410,10 +415,10 @@ void UpdateRadarDisplay() {
     if (!view_drawn) {
         fillScreen(BLACK);
         if (interrupt_draw) return;
-        fillCircle(64, 68, 60, 0x0100); 
+        fillCircle(64, 68, 60, 0x0100); // Radar Field
         if (interrupt_draw) return;
         drawCircle(64, 68, 20, GREEN); drawCircle(64, 68, 40, GREEN); drawCircle(64, 68, 60, GREEN);
-        drawFastHLine(4, 68, 120, GREEN); drawFastVLine(64, 8, 120, GREEN);
+        drawFastHLine(4, 68, 120, GREEN); drawFastVLine(64, 8, 120, GREEN); // Crosshairs
         setCursor(0, 0); setTextColor(YELLOW, BLACK); Outstr("RADAR: ");
         setTextColor(WHITE, BLACK); Outstr(mock_flights[last_displayed_index].callsign);
         view_drawn = true; radar_angle = 0.0;
@@ -422,10 +427,13 @@ void UpdateRadarDisplay() {
     if ((tickCount - last_radar_update) > 150) {
         last_radar_update = tickCount;
         if (interrupt_draw) return;
+        // Sweep logic
         drawLine(64, 68, 64+get_x_offset((int)radar_angle, 58), 68+get_y_offset((int)radar_angle, 58), 0x0100);
         radar_angle = (float)((int)(radar_angle + 10) % 360);
         if (interrupt_draw) return;
         drawLine(64, 68, 64+get_x_offset((int)radar_angle, 58), 68+get_y_offset((int)radar_angle, 58), GREEN);
+        
+        // Refresh structural lines
         if (interrupt_draw) return;
         drawCircle(64, 68, 20, GREEN); drawCircle(64, 68, 40, GREEN); drawCircle(64, 68, 60, GREEN);
         drawFastHLine(4, 68, 120, GREEN); drawFastVLine(64, 8, 120, GREEN);
@@ -435,6 +443,7 @@ void UpdateRadarDisplay() {
         int tx = 64 + get_x_offset(target_angle, target_radius);
         int ty = 68 + get_y_offset(target_angle, target_radius);
         float diff = radar_angle - (float)target_angle; if (diff < 0) diff += 360.0;
+        
         if (interrupt_draw) return;
         if (diff < 20.0) fillCircle(tx, ty, 3, WHITE);
         else if (diff < 50.0) fillCircle(tx, ty, 3, RED);
@@ -521,7 +530,7 @@ void main() {
                 case 0x0000c004: current_group = (current_group + 1) % 3; DisplayFlightByIndex((current_group * 9) + current_button_idx); break; // 0
                 case 0x0000c098: SwitchViewMode(VIEW_MAP); break; // UP
                 case 0x0000c0f8: 
-                case 0xc0f8c0f8: SwitchViewMode(VIEW_COMPASS); break; // LEFT (dual codes)
+                case 0xc0f8c0f8: SwitchViewMode(VIEW_COMPASS); break; // LEFT
                 case 0x0000c078: SwitchViewMode(VIEW_PROGRESS); break; // RIGHT
                 case 0x0000c018: SwitchViewMode(VIEW_RADAR); break; // DOWN
                 case 0x0000c050: if (last_displayed_index != -1) ExecuteAWSSync(); break; // OK
@@ -540,11 +549,25 @@ void main() {
 void PostFlightData(int iTLSSockID, int index) {
     char acSendBuff[1024], acRecvbuff[1460], cCLLength[64], data[512], *pcBufHeaders = acSendBuff;
     Flight f = mock_flights[index];
-    if (current_view == VIEW_MAP) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Map: %s!\\nQuery: %s,%s\"}}}", f.callsign, f.lat, f.lon);
-    else if (current_view == VIEW_COMPASS) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Compass View!\\nFlight: %s\\nHeading: %03d\"}}}", f.callsign, f.heading);
-    else if (current_view == VIEW_PROGRESS) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Progress View!\\nFlight: %s\\nRoute: %s to %s\"}}}", f.callsign, f.origin_code, f.dest_code);
-    else if (current_view == VIEW_RADAR) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Radar active!\\nFlight: %s\"}}}", f.callsign);
-    else sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Flight: %s\\nOrigin: %s\\nType: %s\"}}}", f.callsign, f.country, f.category);
+    
+    // AWS Payload specifically formatted for each mode
+    if (current_view == VIEW_MAP) {
+        sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Map triggered for Flight %s!\\nView on map: https://www.google.com/maps/search/?api=1&query=%s,%s\"}}}", 
+                f.callsign, f.lat, f.lon);
+    } else if (current_view == VIEW_COMPASS) {
+        sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Compass Check: Flight %s\\nHeading: %03d Degrees\"}}}", 
+                f.callsign, f.heading);
+    } else if (current_view == VIEW_PROGRESS) {
+        sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Progress Update for Flight %s!\\nRoute: %s to %s\\nCompletion: %d%%\"}}}", 
+                f.callsign, f.origin_code, f.dest_code, f.percent_complete);
+    } else if (current_view == VIEW_RADAR) {
+        sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Radar sweeping Flight %s!\\nSweep Angle: %d\"}}}", 
+                f.callsign, (int)radar_angle);
+    } else {
+        sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Flight: %s\\nOrigin: %s\\nType: %s\\nLat: %s\\nLon: %s\"}}}", 
+                f.callsign, f.country, f.category, f.lat, f.lon);
+    }
+
     strcpy(pcBufHeaders, AWS_POST_HEADER); pcBufHeaders += strlen(AWS_POST_HEADER);
     strcpy(pcBufHeaders, AWS_HOST_HEADER); pcBufHeaders += strlen(AWS_HOST_HEADER);
     strcpy(pcBufHeaders, CHEADER); pcBufHeaders += strlen(CHEADER);
