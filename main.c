@@ -204,7 +204,6 @@ void ExecuteAWSSync();
 void ProcessTilt();
 
 
-//! Board Initialization & Configuration
 static void BoardInit(void) {
 #ifndef USE_TIRTOS
 #if defined(ccs)
@@ -216,7 +215,6 @@ static void BoardInit(void) {
     PRCMCC3200MCUInit();
 }
 
-//! This function updates the date and time of CC3200.
 static int set_time() {
     long retVal;
     g_time.tm_day = DATE;
@@ -250,54 +248,31 @@ void DrawMonochromeBitmap(int x, int y, const unsigned char *bitmap, int w, int 
     }
 }
 
-// Smart UI Implementation
 void UpdateFlightDisplay(const char* status, int index) {
-    static int prev_index = -2;
-    static char prev_status[24] = "";
-    static CurrentView prev_view = VIEW_TEXT;
-
-    bool data_changed = (index != prev_index) || (current_view != prev_view);
-    bool status_changed = (strcmp(status, prev_status) != 0);
-
-    if (data_changed) {
-        fillScreen(BLACK);
-        if (interrupt_draw) return;
-        if (index >= 0 && index < 27) {
-            Flight f = mock_flights[index];
-            setCursor(0, 5); setTextColor(YELLOW, BLACK); setTextSize(1);
-            Outstr("FLIGHT TRACKING");
-            
-            setCursor(95, 5); setTextColor(CYAN, BLACK);
-            char grp[8]; sprintf(grp, "GRP %d", current_group); Outstr(grp);
-
-            setCursor(0, 20); setTextColor(GREEN, BLACK); setTextSize(2);
-            Outstr(f.callsign);
-            setTextSize(1); setTextColor(WHITE, BLACK);
-            setCursor(0, 45); Outstr("Origin: "); Outstr(f.country);
-            setCursor(0, 58); Outstr("Type:   "); Outstr(f.category);
-            setCursor(0, 75); setTextColor(CYAN, BLACK);
-            Outstr("LAT: "); Outstr(f.lat);
-            setCursor(0, 88);
-            Outstr("LON: "); Outstr(f.lon);
-            setCursor(0, 101); setTextColor(WHITE, BLACK);
-            Outstr("Time: "); Outstr(f.timestamp);
-        } else {
-            setCursor(10, 50); setTextColor(WHITE, BLACK);
-            Outstr("Awaiting Input...");
-        }
-        prev_index = index;
-        prev_view = current_view;
+    fillScreen(BLACK);
+    if (index >= 0 && index < 27) {
+        Flight f = mock_flights[index];
+        setCursor(0, 5); setTextColor(YELLOW, BLACK); setTextSize(1);
+        Outstr("FLIGHT TRACKING");
+        setCursor(95, 5); setTextColor(CYAN, BLACK);
+        char grp[8]; sprintf(grp, "GRP %d", current_group); Outstr(grp);
+        setCursor(0, 20); setTextColor(GREEN, BLACK); setTextSize(2);
+        Outstr(f.callsign);
+        setTextSize(1); setTextColor(WHITE, BLACK);
+        setCursor(0, 45); Outstr("Origin: "); Outstr(f.country);
+        setCursor(0, 58); Outstr("Type:   "); Outstr(f.category);
+        setCursor(0, 75); setTextColor(CYAN, BLACK);
+        Outstr("LAT: "); Outstr(f.lat);
+        setCursor(0, 88); Outstr("LON: "); Outstr(f.lon);
+        setCursor(0, 101); setTextColor(WHITE, BLACK);
+        Outstr("Time: "); Outstr(f.timestamp);
+    } else {
+        setCursor(10, 50); setTextColor(WHITE, BLACK);
+        Outstr("Awaiting Input...");
     }
-
-    if (status_changed || data_changed) {
-        if (interrupt_draw) return;
-        fillRect(0, 115, 128, 13, BLACK); 
-        setCursor(0, 118);
-        setTextColor(WHITE, BLACK);
-        Outstr("Status: ");
-        Outstr(status);
-        strcpy(prev_status, status);
-    }
+    fillRect(0, 115, 128, 13, BLACK); 
+    setCursor(0, 118); setTextColor(WHITE, BLACK);
+    Outstr("Status: "); Outstr(status);
 }
 
 void UpdateMapDisplay() {
@@ -310,17 +285,12 @@ void UpdateMapDisplay() {
         Outstr("MAP: "); Outstr(mock_flights[last_displayed_index].callsign);
         view_drawn = true;
     }
-
     if (last_displayed_index >= 0 && last_displayed_index < 27) {
         Flight f = mock_flights[last_displayed_index];
-        float lat = atof(f.lat);
-        float lon = atof(f.lon);
-        int x = (int)((lon + 180.0) * (128.0 / 360.0));
-        int y = (int)((90.0 - lat) * (128.0 / 180.0));
-        
+        int x = (int)((atof(f.lon) + 180.0) * (128.0 / 360.0));
+        int y = (int)((90.0 - atof(f.lat)) * (128.0 / 180.0));
         if ((tickCount - last_blink_time) > 500) {
-            blink_state = !blink_state;
-            last_blink_time = tickCount;
+            blink_state = !blink_state; last_blink_time = tickCount;
             if (interrupt_draw) return;
             int i; for(i = 1; i <= 4; i++) drawPixel(x - i*4, y + i*4, RED);
             if (blink_state) fillCircle(x, y, 3, RED);
@@ -335,11 +305,9 @@ void UpdateCompassDisplay() {
         if (interrupt_draw) return;
         setCursor(0, 0); setTextColor(YELLOW, BLACK); Outstr("COMPASS: ");
         setTextColor(WHITE, BLACK); Outstr(mock_flights[last_displayed_index].callsign);
-
         fillCircle(64, 68, 42, 0x0125); 
         if (interrupt_draw) return;
         fillCircle(64, 68, 40, BLACK);  
-        
         int i;
         for(i = 0; i < 360; i += 45) {
             if (interrupt_draw) return;
@@ -349,25 +317,20 @@ void UpdateCompassDisplay() {
         setCursor(108, 64); Outstr("E");
         setCursor(61, 109); Outstr("S");
         setCursor(16, 64); Outstr("W");
-
         int heading = mock_flights[last_displayed_index].heading;
         if (interrupt_draw) return;
-        
-        // Refined Diamond Aviation Pointer (North/South split)
-        int tip_x = 64 + get_x_offset(heading, 35);
-        int tip_y = 68 + get_y_offset(heading, 35);
-        int side1_x = 64 + get_x_offset(heading + 170, 7);
-        int side1_y = 68 + get_y_offset(heading + 170, 7);
-        int side2_x = 64 + get_x_offset(heading - 170, 7);
-        int side2_y = 68 + get_y_offset(heading - 170, 7);
-        int tail_x = 64 + get_x_offset(heading + 180, 35);
-        int tail_y = 68 + get_y_offset(heading + 180, 35);
-
-        fillTriangle(tip_x, tip_y, side1_x, side1_y, side2_x, side2_y, RED); // North
+        int tip_x = 64 + get_x_offset(heading, 38);
+        int tip_y = 68 + get_y_offset(heading, 38);
+        int tail_x = 64 + get_x_offset(heading + 180, 38);
+        int tail_y = 68 + get_y_offset(heading + 180, 38);
+        int bl_x = 64 + get_x_offset(heading - 90, 4);
+        int bl_y = 68 + get_y_offset(heading - 90, 4);
+        int br_x = 64 + get_x_offset(heading + 90, 4);
+        int br_y = 68 + get_y_offset(heading + 90, 4);
+        fillTriangle(tip_x, tip_y, bl_x, bl_y, br_x, br_y, RED);
         if (interrupt_draw) return;
-        fillTriangle(tail_x, tail_y, side1_x, side1_y, side2_x, side2_y, WHITE); // South
-        fillCircle(64, 68, 3, GRAY); // Pivot pin
-
+        fillTriangle(tail_x, tail_y, bl_x, bl_y, br_x, br_y, WHITE);
+        fillCircle(64, 68, 3, GRAY); 
         char buf[16]; sprintf(buf, "Hdg: %03d DEG", heading);
         setCursor(30, 118); setTextColor(GREEN, BLACK); Outstr(buf);
         view_drawn = true;
@@ -385,25 +348,20 @@ void UpdateProgressDisplay() {
         setCursor(0, 5); setTextColor(YELLOW, BLACK); Outstr("EN ROUTE");
         setCursor(10, 35); setTextColor(CYAN, BLACK); setTextSize(2); Outstr(f.origin_code);
         setCursor(94, 35); Outstr(f.dest_code); setTextSize(1);
-        
-        // Stylized track background
-        fillRect(10, 65, 108, 16, 0x2104); // Dark Gray background
-        drawRect(10, 65, 108, 16, WHITE); // Border
-        
+        fillRect(10, 65, 108, 16, 0x2104);
+        drawRect(10, 65, 108, 16, WHITE);
         if (interrupt_draw) return;
         char buf[20]; sprintf(buf, "Status: %d%%", f.percent_complete);
         setCursor(30, 95); setTextColor(GREEN, BLACK); Outstr(buf);
-        anim_x = 10;
-        view_drawn = true;
+        anim_x = 10; view_drawn = true;
     }
-
     int target_x = 10 + (108 * mock_flights[last_displayed_index].percent_complete) / 100;
     if ((tickCount - last_blink_time) > 20) {
         last_blink_time = tickCount;
         if (anim_x < target_x) {
             if (interrupt_draw) return;
-            fillRect(anim_x - 4, 52, 8, 8, BLACK); // Erase icon
-            drawFastVLine(anim_x, 66, 14, GREEN); // Fill bar
+            fillRect(anim_x - 4, 52, 8, 8, BLACK);
+            drawFastVLine(anim_x, 66, 14, GREEN);
             anim_x++;
             if (interrupt_draw) return;
             DrawMonochromeBitmap(anim_x - 4, 52, airplane_bmp, 8, 8, WHITE);
@@ -415,35 +373,31 @@ void UpdateRadarDisplay() {
     if (!view_drawn) {
         fillScreen(BLACK);
         if (interrupt_draw) return;
-        fillCircle(64, 68, 60, 0x0100); // Radar Field
+        fillCircle(64, 68, 60, 0x0100); 
         if (interrupt_draw) return;
         drawCircle(64, 68, 20, GREEN); drawCircle(64, 68, 40, GREEN); drawCircle(64, 68, 60, GREEN);
-        drawFastHLine(4, 68, 120, GREEN); drawFastVLine(64, 8, 120, GREEN); // Crosshairs
+        drawFastHLine(4, 68, 120, GREEN); drawFastVLine(64, 8, 120, GREEN);
         setCursor(0, 0); setTextColor(YELLOW, BLACK); Outstr("RADAR: ");
         setTextColor(WHITE, BLACK); Outstr(mock_flights[last_displayed_index].callsign);
         view_drawn = true; radar_angle = 0.0;
     }
-
     if ((tickCount - last_radar_update) > 150) {
         last_radar_update = tickCount;
         if (interrupt_draw) return;
-        // Sweep logic
         drawLine(64, 68, 64+get_x_offset((int)radar_angle, 58), 68+get_y_offset((int)radar_angle, 58), 0x0100);
         radar_angle = (float)((int)(radar_angle + 10) % 360);
         if (interrupt_draw) return;
         drawLine(64, 68, 64+get_x_offset((int)radar_angle, 58), 68+get_y_offset((int)radar_angle, 58), GREEN);
-        
-        // Refresh structural lines
         if (interrupt_draw) return;
         drawCircle(64, 68, 20, GREEN); drawCircle(64, 68, 40, GREEN); drawCircle(64, 68, 60, GREEN);
         drawFastHLine(4, 68, 120, GREEN); drawFastVLine(64, 8, 120, GREEN);
-
+        char angle_buf[16]; sprintf(angle_buf, "%03d DEG", (int)radar_angle);
+        setCursor(85, 118); setTextColor(GREEN, BLACK); Outstr(angle_buf);
         int target_angle = (last_displayed_index * 40) % 360;
         int target_radius = 15 + (last_displayed_index * 5) % 40;
         int tx = 64 + get_x_offset(target_angle, target_radius);
         int ty = 68 + get_y_offset(target_angle, target_radius);
         float diff = radar_angle - (float)target_angle; if (diff < 0) diff += 360.0;
-        
         if (interrupt_draw) return;
         if (diff < 20.0) fillCircle(tx, ty, 3, WHITE);
         else if (diff < 50.0) fillCircle(tx, ty, 3, RED);
@@ -455,37 +409,31 @@ void UpdateRadarDisplay() {
 void SwitchViewMode(CurrentView view) {
     if (last_displayed_index == -1) return;
     if (current_view == view) return;
-    UART_PRINT("UI: Switching to View %d\n\r", (int)view);
+    UART_PRINT("UI: Switching View %d\n\r", (int)view);
     current_view = view; view_drawn = false;
 }
 
 void DisplayFlightByIndex(int index) {
     if (index < 0) index = 26; if (index >= 27) index = 0;
-    if (index != last_displayed_index || current_view != VIEW_TEXT) {
-        UART_PRINT("UI: Displaying Flight Index %d\n\r", index);
-        last_displayed_index = index; current_view = VIEW_TEXT; view_drawn = false;
-        UpdateFlightDisplay("Selected", index);
-    }
+    last_displayed_index = index; current_view = VIEW_TEXT; view_drawn = false; 
+    UART_PRINT("UI: Displaying Flight Index %d (Mode: TEXT)\n\r", index);
+    UpdateFlightDisplay("Selected", index);
 }
 
 void ExecuteAWSSync() {
     if (current_view == VIEW_TEXT) UpdateFlightDisplay("Syncing Cloud...", last_displayed_index);
-    UART_PRINT("AWS: Manual Sync Triggered for %s\n\r", mock_flights[last_displayed_index].callsign);
+    UART_PRINT("AWS: Manual Sync for %s\n\r", mock_flights[last_displayed_index].callsign);
     g_app_config.host = AWS_SERVER_NAME; g_app_config.port = AWS_PORT;
     int awsSockID = tls_connect(true);
-    if (awsSockID >= 0) {
-        PostFlightData(awsSockID, last_displayed_index); sl_Close(awsSockID);
-        UART_PRINT("AWS: Sync Complete.\n\r");
-        if (current_view == VIEW_TEXT) UpdateFlightDisplay("Tracked", last_displayed_index);
-    } else {
-        if (current_view == VIEW_TEXT) UpdateFlightDisplay("Sync Failed", last_displayed_index);
-    }
+    if (awsSockID >= 0) { PostFlightData(awsSockID, last_displayed_index); sl_Close(awsSockID); if (current_view == VIEW_TEXT) UpdateFlightDisplay("Tracked", last_displayed_index); }
+    else if (current_view == VIEW_TEXT) UpdateFlightDisplay("Sync Failed", last_displayed_index);
 }
 
 void ProcessTilt() {
     signed char x = 0; unsigned char devAddr = 0x18, startingReg = 0x03, buffer[1];
     if (I2C_IF_ReadFrom(devAddr, &startingReg, 1, buffer, 1) == 0) {
         x = (signed char)buffer[0];
+        static unsigned long last_log = 0; if ((tickCount - last_log) > 1000) { UART_PRINT("ACCEL X: %d\n\r", x); last_log = tickCount; }
         if ((tickCount - last_tilt_time) > 1000) {
             if (x > 50) { last_tilt_time = tickCount; DisplayFlightByIndex(last_displayed_index - 1); }
             else if (x < -50) { last_tilt_time = tickCount; DisplayFlightByIndex(last_displayed_index + 1); }
@@ -501,8 +449,7 @@ void main() {
     MAP_SPIConfigSetExpClk(GSPI_BASE, MAP_PRCMPeripheralClockGet(PRCM_GSPI), 1000000, SPI_MODE_MASTER, SPI_SUB_MODE_0, (SPI_SW_CTRL_CS | SPI_4PIN_MODE | SPI_TURBO_OFF | SPI_CS_ACTIVEHIGH | SPI_WL_8));
     MAP_SPIEnable(GSPI_BASE); Adafruit_Init(); I2C_IF_Open(I2C_MASTER_MODE_FST);
     fillScreen(BLACK); UpdateFlightDisplay("Idle", -1);
-    SysTickInit();
-    MAP_GPIOIntRegister(GPIOA0_BASE, GPIOIntHandler);
+    SysTickInit(); MAP_GPIOIntRegister(GPIOA0_BASE, GPIOIntHandler);
     MAP_GPIOIntTypeSet(GPIOA0_BASE, 0x80, GPIO_FALLING_EDGE);
     MAP_GPIOIntClear(GPIOA0_BASE, MAP_GPIOIntStatus(GPIOA0_BASE, false));
     MAP_GPIOIntEnable(GPIOA0_BASE, 0x80);
@@ -510,30 +457,28 @@ void main() {
     Timer_IF_IntSetup(TIMERA0_BASE, TIMER_A, TimerTickHandler);
     Timer_IF_Start(TIMERA0_BASE, TIMER_A, 1);
     connectToAccessPoint(); set_time();
-    UART_PRINT("System Ready. IR Buttons 1-9 (Slots), 0 (Cycle Group), OK (Sync).\n\r");
-
     while(1) {
         interrupt_draw = false; 
         if(message_ready) {
             uint32_t current_msg = message_buffer; message_ready = false;
             UART_PRINT("IR RECEIVED: 0x%08x\n\r", current_msg);
             switch(current_msg) {
-                case 0x0000c084: current_button_idx = 0; DisplayFlightByIndex((current_group * 9) + 0); break; // 1
-                case 0x0000c044: current_button_idx = 1; DisplayFlightByIndex((current_group * 9) + 1); break; // 2
-                case 0x0000c0c4: current_button_idx = 2; DisplayFlightByIndex((current_group * 9) + 2); break; // 3
-                case 0x0000c024: current_button_idx = 3; DisplayFlightByIndex((current_group * 9) + 3); break; // 4
-                case 0x0000c0a4: current_button_idx = 4; DisplayFlightByIndex((current_group * 9) + 4); break; // 5
-                case 0x0000c064: current_button_idx = 5; DisplayFlightByIndex((current_group * 9) + 5); break; // 6
-                case 0x0000c0e4: current_button_idx = 6; DisplayFlightByIndex((current_group * 9) + 6); break; // 7
-                case 0x0000c014: current_button_idx = 7; DisplayFlightByIndex((current_group * 9) + 7); break; // 8
-                case 0x0000c094: current_button_idx = 8; DisplayFlightByIndex((current_group * 9) + 8); break; // 9
-                case 0x0000c004: current_group = (current_group + 1) % 3; DisplayFlightByIndex((current_group * 9) + current_button_idx); break; // 0
-                case 0x0000c098: SwitchViewMode(VIEW_MAP); break; // UP
+                case 0x0000c084: current_button_idx = 0; DisplayFlightByIndex((current_group * 9) + 0); break;
+                case 0x0000c044: current_button_idx = 1; DisplayFlightByIndex((current_group * 9) + 1); break;
+                case 0x0000c0c4: current_button_idx = 2; DisplayFlightByIndex((current_group * 9) + 2); break;
+                case 0x0000c024: current_button_idx = 3; DisplayFlightByIndex((current_group * 9) + 3); break;
+                case 0x0000c0a4: current_button_idx = 4; DisplayFlightByIndex((current_group * 9) + 4); break;
+                case 0x0000c064: current_button_idx = 5; DisplayFlightByIndex((current_group * 9) + 5); break;
+                case 0x0000c0e4: current_button_idx = 6; DisplayFlightByIndex((current_group * 9) + 6); break;
+                case 0x0000c014: current_button_idx = 7; DisplayFlightByIndex((current_group * 9) + 7); break;
+                case 0x0000c094: current_button_idx = 8; DisplayFlightByIndex((current_group * 9) + 8); break;
+                case 0x0000c004: if (current_view == VIEW_TEXT) { current_group = (current_group + 1) % 3; DisplayFlightByIndex((current_group * 9) + current_button_idx); } break;
+                case 0x0000c098: SwitchViewMode(VIEW_MAP); break; 
                 case 0x0000c0f8: 
-                case 0xc0f8c0f8: SwitchViewMode(VIEW_COMPASS); break; // LEFT
-                case 0x0000c078: SwitchViewMode(VIEW_PROGRESS); break; // RIGHT
-                case 0x0000c018: SwitchViewMode(VIEW_RADAR); break; // DOWN
-                case 0x0000c050: if (last_displayed_index != -1) ExecuteAWSSync(); break; // OK
+                case 0xc0f8c0f8: SwitchViewMode(VIEW_COMPASS); break;
+                case 0x0000c078: SwitchViewMode(VIEW_PROGRESS); break;
+                case 0x0000c018: SwitchViewMode(VIEW_RADAR); break;
+                case 0x0000c050: if (last_displayed_index != -1) ExecuteAWSSync(); break;
             }
         }
         if (!interrupt_draw) {
@@ -549,25 +494,11 @@ void main() {
 void PostFlightData(int iTLSSockID, int index) {
     char acSendBuff[1024], acRecvbuff[1460], cCLLength[64], data[512], *pcBufHeaders = acSendBuff;
     Flight f = mock_flights[index];
-    
-    // AWS Payload specifically formatted for each mode
-    if (current_view == VIEW_MAP) {
-        sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Map triggered for Flight %s!\\nView on map: https://www.google.com/maps/search/?api=1&query=%s,%s\"}}}", 
-                f.callsign, f.lat, f.lon);
-    } else if (current_view == VIEW_COMPASS) {
-        sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Compass Check: Flight %s\\nHeading: %03d Degrees\"}}}", 
-                f.callsign, f.heading);
-    } else if (current_view == VIEW_PROGRESS) {
-        sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Progress Update for Flight %s!\\nRoute: %s to %s\\nCompletion: %d%%\"}}}", 
-                f.callsign, f.origin_code, f.dest_code, f.percent_complete);
-    } else if (current_view == VIEW_RADAR) {
-        sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Radar sweeping Flight %s!\\nSweep Angle: %d\"}}}", 
-                f.callsign, (int)radar_angle);
-    } else {
-        sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Flight: %s\\nOrigin: %s\\nType: %s\\nLat: %s\\nLon: %s\"}}}", 
-                f.callsign, f.country, f.category, f.lat, f.lon);
-    }
-
+    if (current_view == VIEW_MAP) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Map triggered for Flight %s!\\nView on map: https://www.google.com/maps/search/?api=1&query=%s,%s\"}}}", f.callsign, f.lat, f.lon);
+    else if (current_view == VIEW_COMPASS) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Compass Check: Flight %s\\nHeading: %03d Degrees\"}}}", f.callsign, f.heading);
+    else if (current_view == VIEW_PROGRESS) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Progress Update for Flight %s!\\nRoute: %s to %s\\nCompletion: %d%%\"}}}", f.callsign, f.origin_code, f.dest_code, f.percent_complete);
+    else if (current_view == VIEW_RADAR) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Radar sweeping Flight %s!\\nSweep Angle: %d\"}}}", f.callsign, (int)radar_angle);
+    else sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Flight: %s\\nOrigin: %s\\nType: %s\\nLat: %s\\nLon: %s\\nUnix: %s\"}}}", f.callsign, f.country, f.category, f.lat, f.lon, f.timestamp);
     strcpy(pcBufHeaders, AWS_POST_HEADER); pcBufHeaders += strlen(AWS_POST_HEADER);
     strcpy(pcBufHeaders, AWS_HOST_HEADER); pcBufHeaders += strlen(AWS_HOST_HEADER);
     strcpy(pcBufHeaders, CHEADER); pcBufHeaders += strlen(CHEADER);

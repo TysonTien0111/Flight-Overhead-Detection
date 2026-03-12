@@ -25,6 +25,7 @@ void PinMuxConfig(void)
     PRCMPeripheralClkEnable(PRCM_GSPI, PRCM_RUN_MODE_CLK);   // OLED SPI
     PRCMPeripheralClkEnable(PRCM_UARTA0, PRCM_RUN_MODE_CLK); // Console
     PRCMPeripheralClkEnable(PRCM_UARTA1, PRCM_RUN_MODE_CLK); // Board-to-Board
+    PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);  // I2C for Accelerometer
 
     //
     // Configure PIN_06 for GPIO Output (OLED CS)
@@ -80,9 +81,17 @@ void PinMuxConfig(void)
     //
     PinTypeUART(PIN_59, PIN_MODE_6);
 
+    //
+    // Configure PIN_01 for I2C0 I2C_SCL
+    //
+    PinTypeI2C(PIN_01, PIN_MODE_1);
+
+    //
+    // Configure PIN_02 for I2C0 I2C_SDA
+    //
+    PinTypeI2C(PIN_02, PIN_MODE_1);
+
     // Set unused pins to PIN_MODE_0
-    PinModeSet(PIN_01, PIN_MODE_0);
-    PinModeSet(PIN_02, PIN_MODE_0);
     PinModeSet(PIN_03, PIN_MODE_0);
     PinModeSet(PIN_04, PIN_MODE_0);
     PinModeSet(PIN_18, PIN_MODE_0);
