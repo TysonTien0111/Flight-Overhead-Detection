@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdlib.h>
+#include <math.h>
 
 #include "simplelink.h"
 
@@ -20,6 +22,7 @@
 #include "timer.h"
 #include "spi.h"
 #include "systick.h"
+#include "i2c.h"
 
 //Common interface includes
 #include "pinmux.h"
@@ -32,30 +35,30 @@
 #include "utils/network_utils.h"
 #include "Adafruit_GFX.h"
 #include "Adafruit_SSD1351.h"
+#include "i2c_if.h"
+#include "world_map.h"
+
+#define PI 3.14159265
 
 // IR Definitions
 #define SYSTICK 16777216
-
-#define MAXCS_BASE GPIOA0_BASE
-#define MAXCS_PIN  0x2
 
 // UI Colors
 #define BLACK           0x0000
 #define GREEN           0x07E0
 #define WHITE           0xFFFF
-#define SKY_BLUE        0x867D
-#define CLOUD_WHITE     0xFFFF
-#define PLANE_GRAY      0x7BEF
-#define PLANE_BODY      0x3186
+#define YELLOW          0xFFE0
+#define CYAN            0x07FF
+#define MAP_OCEAN       0x001F
+#define MAP_LAND        0x07E0
+#define RED             0xF800
 
-#define TOP_HALF_Y      0
-#define BOTTOM_HALF_Y   65
-
-// Animation Settings
-#define ANIM_INTERVAL   50 // ms
+// BMA222 I2C Definitions
+#define BMA222_ADDR     0x18
+#define BMA222_X_REG    0x03
 
 //NEED TO UPDATE every time!
-#define DATE                9    /* Current Date */
+#define DATE                8    /* Current Date */
 #define MONTH               3     /* Month 1-12 */
 #define YEAR                2026  /* Current year */
 #define HOUR                13    /* Time - hours */
@@ -64,13 +67,6 @@
 
 #define APPLICATION_NAME      "SSL"
 #define APPLICATION_VERSION   "SQ24"
-
-// OpenSky API Definitions
-#define OPENSKY_SERVER_NAME "opensky-network.org"
-#define OPENSKY_PORT 443
-#define OPENSKY_GET_PATH "/api/states/all?lamin=38.5&lomin=-121.6&lamax=38.7&lomax=-121.4"
-#define OPENSKY_GET_HEADER "GET " OPENSKY_GET_PATH " HTTP/1.1\r\n"
-#define OPENSKY_HOST_HEADER "Host: " OPENSKY_SERVER_NAME "\r\n"
 
 // AWS IoT Definitions
 #define AWS_SERVER_NAME "a1kqo0z2zpc3cs-ats.iot.us-east-1.amazonaws.com"
@@ -101,41 +97,98 @@ volatile int bit_count = 0;
 volatile bool message_ready = false;
 
 volatile unsigned long tickCount = 0;
+unsigned long last_interaction_time = 0;
+unsigned long last_tilt_time = 0;
 
-char current_callsign[16] = {0};
-char current_altitude[16] = {0};
 int last_displayed_index = -1;
 bool new_flight_data = false;
+bool sync_needed = false;
 
-// Animation State
-int plane_x = -30, plane_old_x = -30;
-int plane_y = 85;
-int cloud1_x = 100, cloud1_old_x = 100;
-int cloud1_y = 75;
-int cloud2_x = 150, cloud2_old_x = 150;
-int cloud2_y = 100;
+// View Mode State
+typedef enum {
+    VIEW_TEXT = 0,
+    VIEW_MAP,
+    VIEW_COMPASS,
+    VIEW_PROGRESS,
+    VIEW_RADAR
+} CurrentView;
+
+CurrentView current_view = VIEW_TEXT;
+bool view_drawn = false;
+unsigned long last_blink_time = 0;
+bool blink_state = false;
+float radar_angle = 0.0;
+unsigned long last_radar_update = 0;
+
+volatile bool interrupt_draw = false; // Priority bailout flag
+int current_group = 0; // 0, 1, 2
+int current_button_idx = 0; // 0-8
 
 typedef struct {
     char callsign[16];
-    char altitude[16];
+    char country[24];
+    char category[20];
+    char lat[12];
+    char lon[12];
+    char timestamp[16];
+    int heading;
+    char origin_code[4];
+    char dest_code[4];
+    int percent_complete;
 } Flight;
 
-Flight mock_flights[] = {
-    {"abc123", "12000"},
-    {"def456", "10500"},
-    {"ghi789", "9800"},
-    {"xyz222", "14200"}
+// 27 Globally dispersed mock flights
+Flight mock_flights[27] = {
+    // GROUP 0: Western Hemisphere
+    {"SWA1234", "USA",           "Large", "38.512",  "-121.501", "1710162000", 270, "SMF", "HNL", 45}, // 1
+    {"UAL456",  "USA",           "Large", "40.712",  "-74.006",  "1710162005", 90,  "LAX", "JFK", 80}, // 2
+    {"TAM789",  "Brazil",        "Large", "-23.550", "-46.633",  "1710162010", 180, "MIA", "GRU", 65}, // 3
+    {"ACA098",  "Canada",        "Heavy", "43.677",  "-79.624",  "1710162011", 45,  "YVR", "LHR", 15}, // 4
+    {"AMX43",   "Mexico",        "Medium","19.432",  "-99.133",  "1710162012", 220, "MEX", "BOG", 55}, // 5
+    {"LAN12",   "Chile",         "Heavy", "-33.448", "-70.669",  "1710162013", 160, "LIM", "SCL", 90}, // 6
+    {"DAL90",   "USA",           "Large", "33.640",  "-84.427",  "1710162014", 315, "ATL", "SEA", 30}, // 7
+    {"AAL50",   "USA",           "Large", "32.899",  "-97.040",  "1710162015", 0,   "DFW", "ORD", 70}, // 8
+    {"JBU11",   "USA",           "Medium","42.360",  "-71.002",  "1710162016", 180, "BOS", "FLL", 50}, // 9
+
+    // GROUP 1: Europe & Africa
+    {"DLH222",  "Germany",       "Heavy", "51.165",  "10.451",   "1710162015", 45,  "FRA", "PEK", 20}, // 1
+    {"BAW99",   "UK",            "Heavy", "51.507",  "-0.127",   "1710162020", 315, "LHR", "JFK", 30}, // 2
+    {"AFR101",  "France",        "Heavy", "48.856",  "2.352",    "1710162025", 225, "CDG", "EZE", 50}, // 3
+    {"KLM44",   "Netherlands",   "Large", "52.308",  "4.768",    "1710162026", 90,  "AMS", "DXB", 60}, // 4
+    {"RYR12",   "Ireland",       "Medium","53.349",  "-6.260",   "1710162027", 135, "DUB", "MAD", 85}, // 5
+    {"SWR55",   "Switzerland",   "Heavy", "47.458",  "8.555",    "1710162028", 270, "ZRH", "SFO", 40}, // 6
+    {"EZY98",   "UK",            "Medium","41.902",  "12.496",   "1710162029", 180, "LGW", "FCO", 75}, // 7
+    {"MSR33",   "Egypt",         "Large", "30.044",  "31.235",   "1710162030", 90,  "CAI", "LHR", 25}, // 8
+    {"SAA11",   "South Africa",  "Heavy", "-26.204", "28.047",   "1710162031", 315, "JNB", "JFK", 10}, // 9
+
+    // GROUP 2: Asia & Oceania
+    {"ANA52",   "Japan",         "Heavy", "35.676",  "139.650",  "1710162030", 0,   "HND", "SFO", 15}, // 1
+    {"CES202",  "China",         "Heavy", "39.904",  "116.407",  "1710162035", 135, "PEK", "SYD", 75}, // 2
+    {"QFA88",   "Australia",     "Medium","-33.868", "151.209",  "1710162040", 45,  "SYD", "LAX", 90}, // 3
+    {"SIA33",   "Singapore",     "Heavy", "1.352",   "103.819",  "1710162041", 270, "SIN", "LHR", 50}, // 4
+    {"UAE10",   "UAE",           "Heavy", "25.204",  "55.270",   "1710162042", 315, "DXB", "JFK", 65}, // 5
+    {"CPA55",   "Hong Kong",     "Heavy", "22.308",  "113.914",  "1710162043", 90,  "HKG", "YVR", 35}, // 6
+    {"AIC40",   "India",         "Large", "28.613",  "77.209",   "1710162044", 225, "DEL", "CDG", 80}, // 7
+    {"KAL70",   "South Korea",   "Heavy", "37.566",  "126.978",  "1710162045", 180, "ICN", "AKL", 20}, // 8
+    {"ANZ22",   "New Zealand",   "Large", "-36.848", "174.763",  "1710162046", 45,  "AKL", "SFO", 10}  // 9
 };
 
 // LOCAL FUNCTION PROTOTYPES
 static int set_time();
 static void BoardInit(void);
-static int opensky_http_get(int);
 
 // UI Functions
-void DrawCloud(int x, int y, unsigned int color);
-void DrawAirplane(int x, int y, unsigned int body_color, unsigned int wing_color);
-void UpdateFlightText(void);
+void UpdateFlightDisplay(const char* status, int index);
+void DrawMonochromeBitmap(int x, int y, const unsigned char *bitmap, int w, int h, unsigned int color);
+void UpdateMapDisplay(void);
+void UpdateCompassDisplay(void);
+void UpdateProgressDisplay(void);
+void UpdateRadarDisplay(void);
+void SwitchViewMode(CurrentView view);
+
+// Math Helpers
+int get_x_offset(int degrees, int radius);
+int get_y_offset(int degrees, int radius);
 
 // Logic
 void SysTickInit(void);
@@ -144,9 +197,10 @@ unsigned long TickDifference(void);
 void record_bit(int value);
 void GPIOIntHandler(void);
 void TimerTickHandler(void);
-void PostFlightData(int iTLSSockID);
+void PostFlightData(int iTLSSockID, int index);
 void DisplayFlightByIndex(int index);
-void FetchAndDisplayFlightData();
+void ExecuteAWSSync();
+void ProcessTilt();
 
 
 //! Board Initialization & Configuration
@@ -175,303 +229,354 @@ static int set_time() {
     return SUCCESS;
 }
 
-// UI Drawing Implementation
-void DrawCloud(int x, int y, unsigned int color) {
-    fillCircle(x, y, 8, color);
-    fillCircle(x+6, y-4, 7, color);
-    fillCircle(x+12, y, 8, color);
-    fillCircle(x+6, y+4, 7, color);
+int get_x_offset(int degrees, int radius) {
+    return (int)(radius * sin(degrees * PI / 180.0));
 }
 
-void DrawAirplane(int x, int y, unsigned int body_color, unsigned int wing_color) {
-    // Body
-    fillRect(x, y, 20, 4, body_color);
-    // Tail
-    fillRect(x, y-4, 4, 4, body_color);
-    // Wings
-    fillRect(x+8, y-6, 4, 16, wing_color);
+int get_y_offset(int degrees, int radius) {
+    return (int)(-radius * cos(degrees * PI / 180.0));
 }
 
-void UpdateFlightText() {
-    // Clear only text area
-    fillRect(0, 0, 128, 40, SKY_BLUE);
-    
-    setCursor(4, 4);
-    setTextColor(WHITE, SKY_BLUE);
-    setTextSize(1);
-    Outstr("FLIGHT: ");
-    setTextColor(GREEN, SKY_BLUE);
-    Outstr(current_callsign);
-    
-    setCursor(4, 20);
-    setTextColor(WHITE, SKY_BLUE);
-    Outstr("ALT: ");
-    Outstr(current_altitude);
-    Outstr(" m");
+void DrawMonochromeBitmap(int x, int y, const unsigned char *bitmap, int w, int h, unsigned int color) {
+    int i, j, byteWidth = (w + 7) / 8;
+    for(j = 0; j < h; j++) {
+        for(i = 0; i < w; i++) {
+            if (interrupt_draw) return; 
+            if(bitmap[j * byteWidth + i / 8] & (128 >> (i & 7))) {
+                drawPixel(x + i, y + j, color);
+            }
+        }
+    }
+}
+
+// Smart UI Implementation
+void UpdateFlightDisplay(const char* status, int index) {
+    static int prev_index = -2;
+    static char prev_status[24] = "";
+    static CurrentView prev_view = VIEW_TEXT;
+
+    bool data_changed = (index != prev_index) || (current_view != prev_view);
+    bool status_changed = (strcmp(status, prev_status) != 0);
+
+    if (data_changed) {
+        fillScreen(BLACK);
+        if (interrupt_draw) return;
+        if (index >= 0 && index < 27) {
+            Flight f = mock_flights[index];
+            setCursor(0, 5); setTextColor(YELLOW, BLACK); setTextSize(1);
+            Outstr("FLIGHT TRACKING");
+            
+            setCursor(95, 5); setTextColor(CYAN, BLACK);
+            char grp[8]; sprintf(grp, "GRP %d", current_group); Outstr(grp);
+
+            setCursor(0, 20); setTextColor(GREEN, BLACK); setTextSize(2);
+            Outstr(f.callsign);
+            setTextSize(1); setTextColor(WHITE, BLACK);
+            setCursor(0, 45); Outstr("Origin: "); Outstr(f.country);
+            setCursor(0, 58); Outstr("Type:   "); Outstr(f.category);
+            setCursor(0, 75); setTextColor(CYAN, BLACK);
+            Outstr("LAT: "); Outstr(f.lat);
+            setCursor(0, 88);
+            Outstr("LON: "); Outstr(f.lon);
+            setCursor(0, 101); setTextColor(WHITE, BLACK);
+            Outstr("Time: "); Outstr(f.timestamp);
+        } else {
+            setCursor(10, 50); setTextColor(WHITE, BLACK);
+            Outstr("Awaiting Input...");
+        }
+        prev_index = index;
+        prev_view = current_view;
+    }
+
+    if (status_changed || data_changed) {
+        if (interrupt_draw) return;
+        fillRect(0, 115, 128, 13, BLACK); 
+        setCursor(0, 118);
+        setTextColor(WHITE, BLACK);
+        Outstr("Status: ");
+        Outstr(status);
+        strcpy(prev_status, status);
+    }
+}
+
+void UpdateMapDisplay() {
+    if (!view_drawn) {
+        fillScreen(MAP_OCEAN);
+        if (interrupt_draw) return;
+        DrawMonochromeBitmap(0, 0, world_map, 128, 128, MAP_LAND);
+        if (interrupt_draw) return;
+        setCursor(0, 0); setTextColor(WHITE, MAP_OCEAN);
+        Outstr("MAP: "); Outstr(mock_flights[last_displayed_index].callsign);
+        view_drawn = true;
+    }
+
+    if (last_displayed_index >= 0 && last_displayed_index < 27) {
+        Flight f = mock_flights[last_displayed_index];
+        float lat = atof(f.lat);
+        float lon = atof(f.lon);
+        int x = (int)((lon + 180.0) * (128.0 / 360.0));
+        int y = (int)((90.0 - lat) * (128.0 / 180.0));
+        
+        if ((tickCount - last_blink_time) > 500) {
+            blink_state = !blink_state;
+            last_blink_time = tickCount;
+            if (interrupt_draw) return;
+            int i; for(i = 1; i <= 4; i++) drawPixel(x - i*4, y + i*4, RED);
+            if (blink_state) fillCircle(x, y, 3, RED);
+            else fillCircle(x, y, 3, MAP_OCEAN); 
+        }
+    }
+}
+
+void UpdateCompassDisplay() {
+    if (!view_drawn) {
+        fillScreen(BLACK);
+        if (interrupt_draw) return;
+        setCursor(0, 0); setTextColor(YELLOW, BLACK); Outstr("COMPASS: ");
+        setTextColor(WHITE, BLACK); Outstr(mock_flights[last_displayed_index].callsign);
+
+        fillCircle(64, 68, 42, 0x0125); 
+        if (interrupt_draw) return;
+        fillCircle(64, 68, 40, BLACK);  
+        
+        int i;
+        for(i = 0; i < 360; i += 45) {
+            if (interrupt_draw) return;
+            drawLine(64+get_x_offset(i,35), 68+get_y_offset(i,35), 64+get_x_offset(i,40), 68+get_y_offset(i,40), CYAN);
+        }
+        setCursor(61, 20); setTextColor(YELLOW, BLACK); Outstr("N");
+        setCursor(108, 64); Outstr("E");
+        setCursor(61, 109); Outstr("S");
+        setCursor(16, 64); Outstr("W");
+
+        int heading = mock_flights[last_displayed_index].heading;
+        if (interrupt_draw) return;
+        
+        int tip_x = 64 + get_x_offset(heading, 35);
+        int tip_y = 68 + get_y_offset(heading, 35);
+        int side1_x = 64 + get_x_offset(heading + 170, 7);
+        int side1_y = 68 + get_y_offset(heading + 170, 7);
+        int side2_x = 64 + get_x_offset(heading - 170, 7);
+        int side2_y = 68 + get_y_offset(heading - 170, 7);
+        int tail_x = 64 + get_x_offset(heading + 180, 35);
+        int tail_y = 68 + get_y_offset(heading + 180, 35);
+
+        fillTriangle(tip_x, tip_y, side1_x, side1_y, side2_x, side2_y, RED);
+        if (interrupt_draw) return;
+        fillTriangle(tail_x, tail_y, side1_x, side1_y, side2_x, side2_y, WHITE);
+        fillCircle(64, 68, 3, 0x7BCF); 
+
+        char buf[16]; sprintf(buf, "Hdg: %03d DEG", heading);
+        setCursor(30, 118); setTextColor(GREEN, BLACK); Outstr(buf);
+        view_drawn = true;
+    }
+}
+
+const unsigned char airplane_bmp[] = { 0x18, 0x3C, 0x7E, 0xFF, 0x3C, 0x3C, 0x7E, 0x00 };
+
+void UpdateProgressDisplay() {
+    static int anim_x = 10;
+    if (!view_drawn) {
+        fillScreen(BLACK);
+        if (interrupt_draw) return;
+        Flight f = mock_flights[last_displayed_index];
+        setCursor(0, 5); setTextColor(YELLOW, BLACK); Outstr("EN ROUTE");
+        setCursor(10, 35); setTextColor(CYAN, BLACK); setTextSize(2); Outstr(f.origin_code);
+        setCursor(94, 35); Outstr(f.dest_code); setTextSize(1);
+        drawRect(10, 65, 108, 16, WHITE);
+        if (interrupt_draw) return;
+        char buf[20]; sprintf(buf, "Status: %d%%", f.percent_complete);
+        setCursor(30, 95); setTextColor(GREEN, BLACK); Outstr(buf);
+        anim_x = 10;
+        view_drawn = true;
+    }
+
+    int target_x = 10 + (108 * mock_flights[last_displayed_index].percent_complete) / 100;
+    if ((tickCount - last_blink_time) > 20) {
+        last_blink_time = tickCount;
+        if (anim_x < target_x) {
+            if (interrupt_draw) return;
+            fillRect(anim_x - 4, 52, 8, 8, BLACK);
+            drawFastVLine(anim_x, 66, 14, GREEN);
+            anim_x++;
+            if (interrupt_draw) return;
+            DrawMonochromeBitmap(anim_x - 4, 52, airplane_bmp, 8, 8, WHITE);
+        }
+    }
+}
+
+void UpdateRadarDisplay() {
+    if (!view_drawn) {
+        fillScreen(BLACK);
+        if (interrupt_draw) return;
+        fillCircle(64, 68, 60, 0x0100); 
+        if (interrupt_draw) return;
+        drawCircle(64, 68, 20, GREEN); drawCircle(64, 68, 40, GREEN); drawCircle(64, 68, 60, GREEN);
+        drawFastHLine(4, 68, 120, GREEN); drawFastVLine(64, 8, 120, GREEN);
+        setCursor(0, 0); setTextColor(YELLOW, BLACK); Outstr("RADAR: ");
+        setTextColor(WHITE, BLACK); Outstr(mock_flights[last_displayed_index].callsign);
+        view_drawn = true; radar_angle = 0.0;
+    }
+
+    if ((tickCount - last_radar_update) > 150) {
+        last_radar_update = tickCount;
+        if (interrupt_draw) return;
+        drawLine(64, 68, 64+get_x_offset((int)radar_angle, 58), 68+get_y_offset((int)radar_angle, 58), 0x0100);
+        radar_angle = (float)((int)(radar_angle + 10) % 360);
+        if (interrupt_draw) return;
+        drawLine(64, 68, 64+get_x_offset((int)radar_angle, 58), 68+get_y_offset((int)radar_angle, 58), GREEN);
+        if (interrupt_draw) return;
+        drawCircle(64, 68, 20, GREEN); drawCircle(64, 68, 40, GREEN); drawCircle(64, 68, 60, GREEN);
+        drawFastHLine(4, 68, 120, GREEN); drawFastVLine(64, 8, 120, GREEN);
+
+        int target_angle = (last_displayed_index * 40) % 360;
+        int target_radius = 15 + (last_displayed_index * 5) % 40;
+        int tx = 64 + get_x_offset(target_angle, target_radius);
+        int ty = 68 + get_y_offset(target_angle, target_radius);
+        float diff = radar_angle - (float)target_angle; if (diff < 0) diff += 360.0;
+        if (interrupt_draw) return;
+        if (diff < 20.0) fillCircle(tx, ty, 3, WHITE);
+        else if (diff < 50.0) fillCircle(tx, ty, 3, RED);
+        else if (diff < 100.0) fillCircle(tx, ty, 2, 0x7800);
+        else fillCircle(tx, ty, 3, 0x0100);
+    }
+}
+
+void SwitchViewMode(CurrentView view) {
+    if (last_displayed_index == -1) return;
+    if (current_view == view) return;
+    UART_PRINT("UI: Switching to View %d\n\r", (int)view);
+    current_view = view; view_drawn = false;
 }
 
 void DisplayFlightByIndex(int index) {
-    if (index < 0 || index >= 4) return;
-    
-    // Only update OLED if the flight is different
-    if (index != last_displayed_index) {
-        strcpy(current_callsign, mock_flights[index].callsign);
-        strcpy(current_altitude, mock_flights[index].altitude);
-        last_displayed_index = index;
-        
-        UpdateFlightText();
-        DisplayFlightOnMAX(); // NEW: send flight info to MAX7219 LED
-        UART_PRINT("\n\rSelected Flight %d: %s at %sm\n\r", index+1, current_callsign, current_altitude);
+    if (index < 0) index = 26; if (index >= 27) index = 0;
+    if (index != last_displayed_index || current_view != VIEW_TEXT) {
+        UART_PRINT("UI: Displaying Flight Index %d\n\r", index);
+        last_displayed_index = index; current_view = VIEW_TEXT; view_drawn = false;
+        UpdateFlightDisplay("Selected", index);
+    }
+}
 
-        // Sync to AWS IoT Cloud Shadow
-        UART_PRINT("Syncing to AWS IoT Cloud Shadow for Email...\n\r");
-        g_app_config.host = AWS_SERVER_NAME;
-        g_app_config.port = AWS_PORT;
-        int awsSockID = tls_connect(true);
-        if (awsSockID >= 0) {
-            PostFlightData(awsSockID);
-            sl_Close(awsSockID);
-            UART_PRINT("Cloud Sync Successful!\n\r");
-        } else {
-            UART_PRINT("AWS Connection Failed.\n\r");
+void ExecuteAWSSync() {
+    if (current_view == VIEW_TEXT) UpdateFlightDisplay("Syncing Cloud...", last_displayed_index);
+    UART_PRINT("AWS: Manual Sync Triggered for %s\n\r", mock_flights[last_displayed_index].callsign);
+    g_app_config.host = AWS_SERVER_NAME; g_app_config.port = AWS_PORT;
+    int awsSockID = tls_connect(true);
+    if (awsSockID >= 0) {
+        PostFlightData(awsSockID, last_displayed_index); sl_Close(awsSockID);
+        UART_PRINT("AWS: Sync Complete.\n\r");
+        if (current_view == VIEW_TEXT) UpdateFlightDisplay("Tracked", last_displayed_index);
+    } else {
+        if (current_view == VIEW_TEXT) UpdateFlightDisplay("Sync Failed", last_displayed_index);
+    }
+}
+
+void ProcessTilt() {
+    signed char x = 0; unsigned char devAddr = 0x18, startingReg = 0x03, buffer[1];
+    if (I2C_IF_ReadFrom(devAddr, &startingReg, 1, buffer, 1) == 0) {
+        x = (signed char)buffer[0];
+        if ((tickCount - last_tilt_time) > 1000) {
+            if (x > 50) { last_tilt_time = tickCount; DisplayFlightByIndex(last_displayed_index - 1); }
+            else if (x < -50) { last_tilt_time = tickCount; DisplayFlightByIndex(last_displayed_index + 1); }
         }
     }
-}
-
-void FetchAndDisplayFlightData() {
-    g_app_config.host = OPENSKY_SERVER_NAME;
-    g_app_config.port = OPENSKY_PORT;
-    UART_PRINT("Connecting to OpenSky Network for Live Fetch...\n\r");
-    int openSkySockID = tls_connect(false);
-    if (openSkySockID >= 0) {
-        new_flight_data = false;
-        opensky_http_get(openSkySockID);
-        sl_Close(openSkySockID);
-        if (new_flight_data) {
-            // Force text update for live fetch
-            last_displayed_index = 99; // Arbitrary value to trigger refresh
-            UpdateFlightText();
-            
-            UART_PRINT("New live flight found! Syncing to AWS IoT...\n\r");
-            g_app_config.host = AWS_SERVER_NAME;
-            g_app_config.port = AWS_PORT;
-            int awsSockID = tls_connect(true);
-            if (awsSockID >= 0) {
-                PostFlightData(awsSockID);
-                sl_Close(awsSockID);
-            }
-            new_flight_data = false;
-        }
-    }
-}
-
-void MAX7219_Send(unsigned char reg, unsigned char data)
-{
-    unsigned long dummy;
-
-    MAP_GPIOPinWrite(MAXCS_BASE, MAXCS_PIN, 0);
-
-    MAP_SPIDataPut(GSPI_BASE, reg);
-    MAP_SPIDataGet(GSPI_BASE, &dummy);
-
-    MAP_SPIDataPut(GSPI_BASE, data);
-    MAP_SPIDataGet(GSPI_BASE, &dummy);
-
-    MAP_GPIOPinWrite(MAXCS_BASE, MAXCS_PIN, MAXCS_PIN);
-}
-
-void MAX7219_SendChar(char c)
-{
-    unsigned char pattern = 0;
-    switch(c)
-    {
-        case '0': pattern = 0x7E; break;
-        case '1': pattern = 0x30; break;
-        case '2': pattern = 0x6D; break;
-        case '3': pattern = 0x79; break;
-        case '4': pattern = 0x33; break;
-        case '5': pattern = 0x5B; break;
-        case '6': pattern = 0x5F; break;
-        case '7': pattern = 0x70; break;
-        case '8': pattern = 0x7F; break;
-        case '9': pattern = 0x7B; break;
-
-        case 'A': pattern = 0x77; break;
-        case 'F': pattern = 0x47; break;
-        case 'L': pattern = 0x0E; break;
-        case 'Y': pattern = 0x3B; break;
-        case ' ': pattern = 0x00; break;
-        default:  pattern = 0x00;
-    }
-    MAX7219_Send(1, pattern);
-}
-
-void MAX7219_Init() {
-    MAX7219_Send(0x0F, 0x00);
-    MAX7219_Send(0x0C, 0x01);
-    MAX7219_Send(0x0B, 0x07);
-    MAX7219_Send(0x0A, 0x08);
 }
 
 void main() {
-    long lRetVal = -1;
-    unsigned long last_anim_time = 0;
-
-    BoardInit();
-    PinMuxConfig();
-    InitTerm();
-    ClearTerm();
-    UART_PRINT("Overhead Flight Detection System with Animation!\n\r");
-
+    BoardInit(); PinMuxConfig(); InitTerm(); ClearTerm();
+    UART_PRINT("Standalone Flight Tracker (Priority IR Booted)\n\r");
     MAP_PRCMPeripheralClkEnable(PRCM_GSPI, PRCM_RUN_MODE_CLK);
-    MAP_SPIReset(GSPI_BASE);
-    MAP_PRCMPeripheralReset(PRCM_GSPI);
+    MAP_SPIReset(GSPI_BASE); MAP_PRCMPeripheralReset(PRCM_GSPI);
     MAP_SPIConfigSetExpClk(GSPI_BASE, MAP_PRCMPeripheralClockGet(PRCM_GSPI), 1000000, SPI_MODE_MASTER, SPI_SUB_MODE_0, (SPI_SW_CTRL_CS | SPI_4PIN_MODE | SPI_TURBO_OFF | SPI_CS_ACTIVEHIGH | SPI_WL_8));
-    MAP_SPIEnable(GSPI_BASE);
-
-    MAX7219_Init();
-
-    Adafruit_Init();
-    fillScreen(SKY_BLUE);
-
+    MAP_SPIEnable(GSPI_BASE); Adafruit_Init(); I2C_IF_Open(I2C_MASTER_MODE_FST);
+    fillScreen(BLACK); UpdateFlightDisplay("Idle", -1);
     SysTickInit();
     MAP_GPIOIntRegister(GPIOA0_BASE, GPIOIntHandler);
     MAP_GPIOIntTypeSet(GPIOA0_BASE, 0x80, GPIO_FALLING_EDGE);
     MAP_GPIOIntClear(GPIOA0_BASE, MAP_GPIOIntStatus(GPIOA0_BASE, false));
     MAP_GPIOIntEnable(GPIOA0_BASE, 0x80);
-
     Timer_IF_Init(PRCM_TIMERA0, TIMERA0_BASE, TIMER_CFG_PERIODIC, TIMER_A, 0);
     Timer_IF_IntSetup(TIMERA0_BASE, TIMER_A, TimerTickHandler);
     Timer_IF_Start(TIMERA0_BASE, TIMER_A, 1);
-
-    lRetVal = connectToAccessPoint();
-    lRetVal = set_time();
-    if(lRetVal < 0) {
-        UART_PRINT("Unable to set time\n\r");
-        LOOP_FOREVER();
-    }
-
-    UART_PRINT("Ready! Use IR remote buttons 1-4.\n\r");
+    connectToAccessPoint(); set_time();
+    UART_PRINT("System Ready. IR Buttons 1-9 (Slots), 0 (Cycle Group), OK (Sync).\n\r");
 
     while(1) {
+        interrupt_draw = false; 
         if(message_ready) {
-            uint32_t current_msg = message_buffer;
-            message_ready = false;
-            UART_PRINT("IR: 0x%08x\n\r", current_msg);
+            uint32_t current_msg = message_buffer; message_ready = false;
+            UART_PRINT("IR RECEIVED: 0x%08x\n\r", current_msg);
             switch(current_msg) {
-                case 0x0000c084: DisplayFlightByIndex(0); break; // 1
-                case 0x0000c044: DisplayFlightByIndex(1); break; // 2
-                case 0x0000c0c4: DisplayFlightByIndex(2); break; // 3
-                case 0x0000c024: DisplayFlightByIndex(3); break; // 4
-                case 0x0000c004: FetchAndDisplayFlightData(); break; // 0
+                case 0x0000c084: current_button_idx = 0; DisplayFlightByIndex((current_group * 9) + 0); break; // 1
+                case 0x0000c044: current_button_idx = 1; DisplayFlightByIndex((current_group * 9) + 1); break; // 2
+                case 0x0000c0c4: current_button_idx = 2; DisplayFlightByIndex((current_group * 9) + 2); break; // 3
+                case 0x0000c024: current_button_idx = 3; DisplayFlightByIndex((current_group * 9) + 3); break; // 4
+                case 0x0000c0a4: current_button_idx = 4; DisplayFlightByIndex((current_group * 9) + 4); break; // 5
+                case 0x0000c064: current_button_idx = 5; DisplayFlightByIndex((current_group * 9) + 5); break; // 6
+                case 0x0000c0e4: current_button_idx = 6; DisplayFlightByIndex((current_group * 9) + 6); break; // 7
+                case 0x0000c014: current_button_idx = 7; DisplayFlightByIndex((current_group * 9) + 7); break; // 8
+                case 0x0000c094: current_button_idx = 8; DisplayFlightByIndex((current_group * 9) + 8); break; // 9
+                case 0x0000c004: current_group = (current_group + 1) % 3; DisplayFlightByIndex((current_group * 9) + current_button_idx); break; // 0
+                case 0x0000c098: SwitchViewMode(VIEW_MAP); break; // UP
+                case 0x0000c0f8: 
+                case 0xc0f8c0f8: SwitchViewMode(VIEW_COMPASS); break; // LEFT (dual codes)
+                case 0x0000c078: SwitchViewMode(VIEW_PROGRESS); break; // RIGHT
+                case 0x0000c018: SwitchViewMode(VIEW_RADAR); break; // DOWN
+                case 0x0000c050: if (last_displayed_index != -1) ExecuteAWSSync(); break; // OK
             }
         }
-
-        // Animation Loop
-        if ((tickCount - last_anim_time) > ANIM_INTERVAL) {
-            last_anim_time = tickCount;
-            
-            // Erase old positions
-            DrawCloud(cloud1_old_x, cloud1_y, SKY_BLUE);
-            DrawCloud(cloud2_old_x, cloud2_y, SKY_BLUE);
-            DrawAirplane(plane_old_x, plane_y, SKY_BLUE, SKY_BLUE);
-            
-            // Update positions
-            plane_old_x = plane_x;
-            plane_x += 2;
-            if (plane_x > 140) { plane_x = -30; plane_old_x = -30; }
-            
-            cloud1_old_x = cloud1_x;
-            cloud1_x -= 1;
-            if (cloud1_x < -30) { cloud1_x = 140; cloud1_old_x = 140; }
-            
-            cloud2_old_x = cloud2_x;
-            cloud2_x -= 1;
-            if (cloud2_x < -30) { cloud2_x = 140; cloud2_old_x = 140; }
-            
-            // Draw new positions
-            DrawCloud(cloud1_x, cloud1_y, CLOUD_WHITE);
-            DrawCloud(cloud2_x, cloud2_y, CLOUD_WHITE);
-            DrawAirplane(plane_x, plane_y, PLANE_GRAY, PLANE_BODY);
+        if (!interrupt_draw) {
+            if (current_view == VIEW_MAP) UpdateMapDisplay();
+            else if (current_view == VIEW_COMPASS) UpdateCompassDisplay();
+            else if (current_view == VIEW_PROGRESS) UpdateProgressDisplay();
+            else if (current_view == VIEW_RADAR) UpdateRadarDisplay();
+            ProcessTilt();
         }
     }
 }
 
-void PostFlightData(int iTLSSockID) {
-    char acSendBuff[1024];
-    char acRecvbuff[1460];
-    char cCLLength[64];
-    char* pcBufHeaders;
-    char data[256];
-    
-    // MATCHING LAB 4 STRUCTURE: state.desired.var triggers the email rule
-    sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Flight %s detected at %s meters!\"}}}", current_callsign, current_altitude);
-    
-    pcBufHeaders = acSendBuff;
+void PostFlightData(int iTLSSockID, int index) {
+    char acSendBuff[1024], acRecvbuff[1460], cCLLength[64], data[512], *pcBufHeaders = acSendBuff;
+    Flight f = mock_flights[index];
+    if (current_view == VIEW_MAP) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Map: %s!\\nQuery: %s,%s\"}}}", f.callsign, f.lat, f.lon);
+    else if (current_view == VIEW_COMPASS) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Compass View!\\nFlight: %s\\nHeading: %03d\"}}}", f.callsign, f.heading);
+    else if (current_view == VIEW_PROGRESS) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Progress View!\\nFlight: %s\\nRoute: %s to %s\"}}}", f.callsign, f.origin_code, f.dest_code);
+    else if (current_view == VIEW_RADAR) sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Radar active!\\nFlight: %s\"}}}", f.callsign);
+    else sprintf(data, "{\"state\": {\"desired\" : {\"var\" :\"Flight: %s\\nOrigin: %s\\nType: %s\"}}}", f.callsign, f.country, f.category);
     strcpy(pcBufHeaders, AWS_POST_HEADER); pcBufHeaders += strlen(AWS_POST_HEADER);
     strcpy(pcBufHeaders, AWS_HOST_HEADER); pcBufHeaders += strlen(AWS_HOST_HEADER);
     strcpy(pcBufHeaders, CHEADER); pcBufHeaders += strlen(CHEADER);
     strcpy(pcBufHeaders, CTHEADER); pcBufHeaders += strlen(CTHEADER);
-    int dataLength = strlen(data);
-    sprintf(cCLLength, "%s%d%s", CLHEADER1, dataLength, CLHEADER2);
+    sprintf(cCLLength, "%s%d%s", CLHEADER1, (int)strlen(data), CLHEADER2);
     strcpy(pcBufHeaders, cCLLength); pcBufHeaders += strlen(cCLLength);
     strcpy(pcBufHeaders, data);
-    
     sl_Send(iTLSSockID, acSendBuff, strlen(acSendBuff), 0);
     sl_Recv(iTLSSockID, &acRecvbuff[0], sizeof(acRecvbuff), 0);
-}
-
-static int opensky_http_get(int iTLSSockID){
-    char acSendBuff[512];
-    char acRecvbuff[1460];
-    char* pcBufHeaders = acSendBuff;
-    strcpy(pcBufHeaders, OPENSKY_GET_HEADER); pcBufHeaders += strlen(OPENSKY_GET_HEADER);
-    strcpy(pcBufHeaders, OPENSKY_HOST_HEADER); pcBufHeaders += strlen(OPENSKY_HOST_HEADER);
-    strcpy(pcBufHeaders, CHEADER); pcBufHeaders += strlen(CHEADER);
-    strcpy(pcBufHeaders, "\r\n");
-    sl_Send(iTLSSockID, acSendBuff, strlen(acSendBuff), 0);
-    int lRetVal = sl_Recv(iTLSSockID, &acRecvbuff[0], sizeof(acRecvbuff) - 1, 0);
-    if(lRetVal <= 0) {
-        new_flight_data = true;
-        strcpy(current_callsign, "LIVE_FLY");
-        strcpy(current_altitude, "32000");
-    } else {
-        new_flight_data = true;
-        strcpy(current_callsign, "OPENSKY1");
-        strcpy(current_altitude, "35000");
-    }
-    return 0;
-}
-
-void DisplayFlightOnMAX() {
-
-    char msg[32];
-    int i;
-    sprintf(msg, "%s %sm", current_callsign, current_altitude);
-    UART_PRINT("MAX7219: %s\n\r", msg);
-
-    for(i = 0; i < strlen(msg); i++) {
-        MAX7219_SendChar(msg[i]);
-        UtilsDelay(8000000);
-    }
 }
 
 void SysTickReset(void) { SysTickPeriodSet(SYSTICK); SysTickEnable(); }
 void SysTickInit(void) { SysTickPeriodSet(SYSTICK); SysTickIntRegister(SysTickReset); SysTickEnable(); }
 unsigned long TickDifference(void) {
     unsigned long currentTick = SysTickValueGet();
-    unsigned long lastTick = ticks;
-    ticks = currentTick;
+    unsigned long lastTick = ticks; ticks = currentTick;
     if (currentTick < lastTick) return (lastTick - currentTick);
     return ((SYSTICK - currentTick) + lastTick);
 }
 void record_bit(int value) { data = (data << 1) | value; bit_count++; }
+volatile unsigned long last_ir_intr_time = 0;
+volatile int ir_burst_count = 0;
 void GPIOIntHandler(void) {
     unsigned long ulStatus = MAP_GPIOIntStatus(GPIOA0_BASE, true);
     MAP_GPIOIntClear(GPIOA0_BASE, ulStatus);
     delta = TickDifference();
     if (delta > 800000) {
-        if (bit_count >= 16) { if (!message_ready) { message_buffer = data; message_ready = true; } }
+        if (bit_count >= 16) { 
+            if ((tickCount - last_ir_intr_time) > 300) ir_burst_count = 1;
+            else ir_burst_count++;
+            last_ir_intr_time = tickCount;
+            if (ir_burst_count == 2) { message_buffer = data; message_ready = true; interrupt_draw = true; }
+        }
         data = 0; bit_count = 0;
     }
     if (delta > 150000 && delta < 200000) record_bit(1);
